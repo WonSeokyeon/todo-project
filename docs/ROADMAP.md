@@ -1,8 +1,9 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.10 · **최종 수정** 2026-08-28
+> **버전** 1.11 · **최종 수정** 2026-08-28
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
+> **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -13,7 +14,7 @@
 
 | Phase | 내용                       | 저장소   | 상태 |
 | ----- | -------------------------- | -------- | ---- |
-| 0     | 저장소 초기화              | 전체     | 🟡   |
+| 0     | 저장소 초기화              | 전체     | ✅   |
 | 1     | 백엔드 스캐폴딩            | backend  | 🟡   |
 | 2     | 도메인 & DB                | backend  | ⬜   |
 | 3     | 인증 (로컬) + 인증 테스트  | backend  | ⬜   |
@@ -50,11 +51,11 @@
 >
 > | 항목                     | 현재 상태                                                                                                                                                                                                                                                                                                                         | 처리 Phase |
 > | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-> | 커밋·원격                | `todo-project` 커밋 0건, `todo-backend` 커밋 0건, `todo-frontend` 커밋 1건(`Initial commit from Create Next App`). 세 저장소 모두 원격 미연결                                                                                                                                                                                     | Phase 0    |
-> | 브랜치명                 | 세 저장소 모두 `master` (루트·백엔드는 커밋이 없어 unborn `master`). `CLAUDE.md` 2장 Git 전략은 `main` ← `develop` ← `feature/{작업명}`                                                                                                                                                                                           | Phase 0    |
-> | 루트 `.gitignore`        | `todo-backend/`, `todo-frontend/`, `.DS_Store`, `*.log`뿐. `node_modules/` 규칙이 없다. **유입원(루트 npm 파일)은 제거됐으므로 재발 방지용 한 줄만 남았다**                                                                                                                                                                       | Phase 0    |
-> | 백엔드 `.gitignore`      | Spring Initializr 기본값 그대로라 **`.env*` 규칙 자체가 없다.** `.env`를 만들면 그대로 커밋된다                                                                                                                                                                                                                                   | Phase 0    |
-> | 프론트 `.gitignore`      | `.env*`는 있으나 **`!.env.example` 예외 줄이 없다.** 예시 파일까지 무시된다                                                                                                                                                                                                                                                       | Phase 0    |
+> | ~~커밋·원격~~            | ✅ **해소 (2026-08-28, v1.11).** 세 저장소 모두 원격(`origin`, 이름 통일 완료)에 연결되고 `main` 브랜치 최초 push 완료. `git rev-parse main`과 `git ls-remote origin main`을 대조해 로컬-원격 커밋 해시 일치를 확인했다                                                                                                          | —          |
+> | ~~브랜치명~~             | ✅ **해소 (v1.11).** 세 저장소 모두 `main`이 존재하고(과거 `master`는 이미 이번 세션 이전에 `main`으로 정리되어 있었다), `develop`을 새로 분기해 원격까지 push했다. `master` 브랜치는 세 저장소 어디에도 남아있지 않다                                                                                                            | —          |
+> | 루트 `.gitignore`        | ✅ **해소 (v1.11).** `node_modules/` 안전망 규칙과 세션 스크래치 파일(`scaffold-check.png`, `.playwright-mcp/`, `.claude/plans/`) 제외 규칙을 추가했다                                                                                                                                                                           | —          |
+> | ~~백엔드 `.gitignore`~~  | ✅ **해소.** 확인 결과 이번 세션 이전에 이미 `.env`/`.env.*`/`!.env.example` 규칙이 커밋되어 있었다(v1.9 표의 서술이 stale했음). `git add .env.example`로 실제 무시되지 않음을 재검증했다                                                                                                                                        | —          |
+> | ~~프론트 `.gitignore`~~  | ✅ **해소 (v1.11로 커밋 반영).** `!.env.example` 예외 줄이 작업 트리에는 이미 있었으나 미커밋 상태였다. Phase 6 마무리 커밋에 포함해 반영했다                                                                                                                                                                                    | —          |
 > | ~~문서 경로~~            | ✅ **해소.** `docs/`를 정본으로 확정하고 `CLAUDE.md` 2장 구조도와 상단 참조 경로를 정정했다 (v1.8)                                                                                                                                                                                                                                | —          |
 > | ~~루트 npm 파일~~        | ✅ **해소.** 루트 `package.json`·`package-lock.json`·`node_modules/`를 삭제했다. `shadcn`은 `todo-frontend/package.json`에 이미 있어 기능 손실이 없고, `.mcp.json`의 shadcn 서버는 `npx shadcn@latest mcp`라 루트 설치에 의존하지 않는다                                                                                          | —          |
 > | `docs/guides/`            | ✅ **해소 (v1.10).** `nextjs-16.md`→`nextjs-15.md`, `forms-react-hook-form.md`→`forms.md`로 개명하고 이 프로젝트 기준으로 재작성(react-hook-form 전제·PRD 1.3·M5·radix-nova·next-themes 등 제거). `README.md` 추가                                                                     | —          |
@@ -133,17 +134,18 @@
   > ⚠️ 옛 `forms-react-hook-form.md`는 `react-hook-form`·`zod`가 **"이미 설치되어 있다"고 서술**했고, 비밀번호 규칙을 **"6자 이상이 전부"**로 적어 UTF-8 72바이트 한계를 누락하고 있었다. 그대로 뒀다면 Phase 7에서 `AUTH-02`가 조용히 깨졌을 문서다.
 - GitHub에 원격 저장소 3개 생성 및 연결
 
-**DoD**
+**DoD** (2026-08-28, v1.11 — 전부 실제 git 명령으로 재검증 완료)
 
-- [ ] 부모 저장소에서 `git status` 시 하위 폴더가 나타나지 않음
-- [ ] **부모 저장소에서 `git status` 시 `node_modules/`가 나타나지 않음**
-- [ ] **세 저장소 각각에서 `git check-ignore -v .env.example`이 아무것도 반환하지 않고, `git check-ignore -v .env`는 규칙에 매칭됨** (백엔드·프론트 양쪽에서 확인)
-- [ ] 세 저장소 모두 현재 브랜치가 `main`이고 `develop`이 존재함 (`master` 없음)
-- [ ] 세 저장소 모두 첫 커밋 및 원격 푸시 완료
-- [ ] 첫 커밋의 파일 수가 예상 범위 안임 (`git show --stat HEAD | tail -1`로 확인 — 문서 저장소가 수천 건이면 무시 규칙이 빠진 것)
-- [ ] `CLAUDE.md` 2장 구조도의 문서 경로가 실제 파일 위치(`docs/`)와 일치함
-- [ ] `docs/guides/`가 `README.md` + 재작성된 5개 문서로만 구성됨 (`nextjs-16.md`·`forms-react-hook-form.md` 없음)
-- [ ] **`todo-frontend/package.json`에 `react-hook-form`·`zod`·`@hookform/resolvers`·`next-themes`가 없음** (스펙 밖 라이브러리 유입 확인)
+- [x] 부모 저장소에서 `git status` 시 하위 폴더가 나타나지 않음
+- [x] **부모 저장소에서 `git status` 시 `node_modules/`가 나타나지 않음**
+- [x] **세 저장소 각각에서 `.env.example`이 실제로 무시되지 않고, `.env`는 무시됨**
+      > ⚠️ `git check-ignore -v .env.example`의 exit code만으로 판단하면 안 된다. 마지막에 매칭된 패턴이 `!.env.example`(음수) 패턴이어도 `check-ignore`가 exit 0을 반환하는 경우가 있었다(todo-project·todo-backend에서 실제로 관찰됨). 실제 판정은 `git add .env.example` 실행 결과("The following paths are ignored" 경고 유무)로 검증했고, 세 저장소 모두 정상적으로 add됨을 확인했다
+- [x] 세 저장소 모두 현재 브랜치가 `main`이고 `develop`이 존재함 (`master` 없음) — `git branch -a`로 세 저장소 모두 확인
+- [x] 세 저장소 모두 첫 커밋 및 원격 푸시 완료 — `git rev-parse main` == `git ls-remote origin main` 해시 일치 확인
+- [x] 첫 커밋의 파일 수가 예상 범위 안임 — todo-project 22개, todo-backend 17개, todo-frontend 19개 (모두 수백 건 미만, 무시 규칙 누락 없음)
+- [x] `CLAUDE.md` 2장 구조도의 문서 경로가 실제 파일 위치(`docs/`)와 일치함
+- [x] `docs/guides/`가 `README.md` + 재작성된 5개 문서로만 구성됨 (`nextjs-16.md`·`forms-react-hook-form.md` 없음)
+- [x] **`todo-frontend/package.json`에 `react-hook-form`·`zod`·`@hookform/resolvers`·`next-themes`가 없음** (스펙 밖 라이브러리 유입 확인, `grep`으로 재확인)
 
 ---
 
