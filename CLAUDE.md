@@ -1,6 +1,7 @@
 # Todo List 프로젝트 개발 가이드
 
-> **버전** 1.8 · **최종 수정** 2026-08-28
+> **버전** 1.9 · **최종 수정** 2026-08-28
+> **v1.9 변경**: 6장 인증 설계를 Access(30분)+Refresh(14일, httpOnly 쿠키) 2-토큰 구조로 정정(기존 서술은 `docs/PRD.md`가 이미 전제하던 설계와 반대였음). 4장에 `refresh_tokens` 테이블, 5장에 `/auth/refresh`·`/auth/logout` API를 추가했다. 코드는 아직 없으므로 문서만 수정.
 > 이 문서는 **기술 규칙의 단일 기준(Single Source of Truth)**이다.
 > 코드 생성 전 반드시 이 문서를 확인하고, 문서와 충돌하는 구현을 하지 않는다.
 > 문서에 없는 결정이 필요하면 임의로 진행하지 말고 먼저 질문한다.
@@ -216,6 +217,24 @@ DB 스키마명: **`todolist_db`** (소문자) · 테스트: **`todolist_test`**
 
 **인덱스**: `idx_todos_user_deleted` on `(user_id, deleted_at)`
 
+### refresh_tokens
+
+> **v1.9 추가.** 6장 인증 설계를 Access(30분)+Refresh(14일) 2-토큰 구조로 확정하면서 신설했다. 자세한 배경은 6장 참조.
+
+| 컬럼       | 타입         | 제약                                          |
+| ---------- | ------------ | --------------------------------------------- |
+| id         | BIGSERIAL    | PK                                            |
+| user_id    | BIGINT       | FK → users.id, NOT NULL                       |
+| token_hash | VARCHAR(255) | NOT NULL, UNIQUE (SHA-256 해시, 평문 저장 금지) |
+| expires_at | TIMESTAMP    | NOT NULL (발급 + 14일)                        |
+| revoked_at | TIMESTAMP    | NULL (회전·로그아웃·탈취 대응 시 채움)        |
+| created_at | TIMESTAMP    | NOT NULL                                      |
+
+**인덱스**: `idx_refresh_tokens_user` on `(user_id)`, `idx_refresh_tokens_token_hash` on `(token_hash)`
+
+- 평문 Refresh Token은 DB에 저장하지 않는다. 발급 시 SHA-256 해시만 저장하고, 검증 시 들어온 토큰을 해시해 비교한다.
+- 사용(회전) 시 기존 행을 `revoked_at` 채워 폐기하고 새 행을 만든다. 물리 삭제하지 않는다(탈취 감사 로그로 남긴다).
+
 ### 입력값 제약 (DTO 검증과 스키마를 일치시킬 것)
 
 | 필드       | 제약                                               | 이유                                              |
@@ -313,14 +332,16 @@ Base path: `/api/v1`
 
 ### 인증
 
-| Method | Endpoint                       | 설명                                    | 인증 |
-| ------ | ------------------------------ | --------------------------------------- | ---- |
-| POST   | `/api/v1/auth/signup`          | 회원가입 (email, password, nickname)    | X    |
-| POST   | `/api/v1/auth/login`           | 로그인 → JWT 반환                       | X    |
-| GET    | `/api/v1/auth/me`              | 내 정보 조회                            | O    |
-| GET    | `/oauth2/authorization/google` | 구글 로그인 시작 (Spring Security 제공) | X    |
+| Method | Endpoint                       | 설명                                              | 인증               |
+| ------ | ------------------------------- | ------------------------------------------------- | ------------------ |
+| POST   | `/api/v1/auth/signup`          | 회원가입 (email, password, nickname)              | X                  |
+| POST   | `/api/v1/auth/login`           | 로그인 → Access Token 반환 + Refresh Token 쿠키 발급 | X                  |
+| POST   | `/api/v1/auth/refresh`         | Refresh Token 쿠키로 Access Token 재발급(회전)     | X (쿠키로 인증)    |
+| POST   | `/api/v1/auth/logout`          | Refresh Token 폐기 + 쿠키 만료                     | O                  |
+| GET    | `/api/v1/auth/me`              | 내 정보 조회                                      | O                  |
+| GET    | `/oauth2/authorization/google` | 구글 로그인 시작 (Spring Security 제공)           | X                  |
 
-> **로그아웃은 서버 API를 만들지 않는다.** Refresh Token과 토큰 블랙리스트가 없으므로, 프론트에서 localStorage의 토큰을 제거하고 React Query 캐시를 비운 뒤 `/login`으로 이동하는 것으로 처리한다.
+> **v1.9**: 6장을 Access+Refresh 2-토큰 설계로 확정하면서 `/auth/refresh`·`/auth/logout`을 추가했다. 로그아웃은 클라이언트 토큰 삭제만으로 끝내지 않고 반드시 이 API를 호출해 서버의 Refresh Token을 폐기한다(6장 참조).
 
 ### Todo
 
@@ -394,24 +415,36 @@ Spring의 `Page` 객체를 그대로 반환하지 않고 `PageResponse<T>` DTO�
 
 ## 6. 인증 설계
 
-### 토큰 정책
+> **v1.9 변경**: 이 장은 원래 Access Token 단일 사용(24시간, Refresh 없음)으로 작성되어 있었으나, `docs/PRD.md`(264행)가 이미 Access+Refresh 2-토큰 설계(`todo_access_token`, httpOnly Refresh 쿠키)를 전제로 작성되어 있었고 사용자가 이 설계로 확정했다. 4장의 `refresh_tokens` 테이블, 5장의 `/auth/refresh`·`/auth/logout` API와 함께 이 장을 정정했다.
 
-- Access Token만 사용 (**24시간 만료**), Refresh Token 없음
-- 만료 시 401 → 프론트에서 로그인 페이지로 리다이렉트
-- 저장 위치: **localStorage** (MVP 기준)
-- 요청 시 `Authorization: Bearer {token}`
+### 토큰 (2종 구조)
 
-### JWT 클레임 구성
+|                | Access Token                             | Refresh Token                              |
+| -------------- | ----------------------------------------- | ------------------------------------------- |
+| 형식           | JWT                                       | 불투명 랜덤 문자열 (JWT 아님)               |
+| 만료           | **30분**                                  | **14일**                                    |
+| 저장 위치      | 프론트엔드 **localStorage** (키: `todo_access_token`) | **httpOnly + Secure + SameSite 쿠키** (`refresh_token`) |
+| 전송           | `Authorization: Bearer <token>` 헤더      | 브라우저가 자동 전송                        |
+| 서버 저장      | 저장하지 않음(stateless)                  | `refresh_tokens` 테이블에 **SHA-256 해시로** 저장(4장) |
+
+- **Refresh Token을 localStorage나 JS에서 접근 가능한 곳에 절대 두지 않는다.** 서버 로그아웃과 XSS 방어의 근거다.
+- Refresh Token은 **회전(rotation)**한다. `/auth/refresh` 호출마다 새로 발급하고 기존 행은 `revoked_at`을 채워 폐기한다.
+- 이미 폐기된 Refresh Token이 다시 들어오면 **탈취로 간주해 해당 사용자의 모든 Refresh Token을 폐기**하고 재로그인시킨다.
+- 프론트는 401(`TOKEN_EXPIRED`)을 받으면 자동으로 `/api/v1/auth/refresh`를 1회 시도하고, 성공하면 원래 요청을 재시도한다. 실패하면 토큰을 지우고 `/login`으로 보낸다. **재시도 루프에 빠지지 않도록 refresh 요청 자체는 재시도 대상에서 제외한다.**
+- 로그아웃은 서버 `POST /api/v1/auth/logout`을 호출해 **Refresh Token을 DB에서 폐기하고 쿠키를 만료**시킨다. 클라이언트 토큰 삭제만으로 끝내지 않는다.
+
+### JWT 클레임 구성 (Access Token)
 
 ```
 sub    : user.id (숫자 문자열)
 email  : user.email
 iat    : 발급 시각
-exp    : 발급 + 24시간
+exp    : 발급 + 30분
 ```
 
 - **`sub`는 이메일이 아니라 id를 담는다.** 이메일 변경 기능이 없어도 id 기반이 조회에 유리하고, 인증 필터에서 PK 조회로 끝난다.
 - `JwtAuthenticationFilter`는 `sub`를 파싱해 사용자 id를 얻고, `deleted_at IS NULL` 조건으로 조회한다.
+- Refresh Token은 JWT가 아니므로 클레임이 없다. 불투명 랜덤 문자열(예: `SecureRandom` 기반 256비트)을 그대로 발급하고, 서버는 해시만 대조한다.
 
 ### SecurityConfig 인가 경로 (필수)
 
@@ -419,6 +452,7 @@ exp    : 발급 + 24시간
 permitAll:
   /api/v1/auth/signup
   /api/v1/auth/login
+  /api/v1/auth/refresh
   /oauth2/**
   /login/oauth2/**
   /swagger-ui/**
@@ -427,6 +461,8 @@ permitAll:
 
 그 외: authenticated
 ```
+
+> `/api/v1/auth/refresh`는 `Authorization` 헤더가 아니라 httpOnly 쿠키로 인증하므로 `JwtAuthenticationFilter`(Bearer 토큰 검사) 대상에서 제외하고 permitAll에 둔다. 컨트롤러 내부에서 쿠키의 Refresh Token을 직접 검증한다.
 
 > ⚠️ **Swagger 경로를 빼먹으면 Phase 3에서 Swagger UI가 막힌다.** Phase 1의 DoD("Swagger 접속 확인")가 조용히 회귀하므로 SecurityConfig 작성 시 반드시 함께 넣는다.
 
@@ -486,7 +522,10 @@ CORS 요구대로 `FRONTEND_URL`에 쉼표 목록을 넣으면, `OAuth2SuccessHa
 - 허용 오리진: 환경변수 `CORS_ALLOWED_ORIGINS`. 쉼표로 구분된 목록을 받는다. 운영에서 Amplify 브랜치 도메인과 커스텀 도메인을 동시에 허용해야 하는 경우가 생긴다 (로컬은 `http://localhost:3000` 하나)
 - 허용 메서드: `GET, POST, PUT, PATCH, DELETE, OPTIONS`
 - **허용 헤더에 `Authorization`, `Content-Type`을 명시한다.** 기본값에 의존하면 프리플라이트에서 막히는 경우가 잦다.
-- 쿠키를 쓰지 않으므로 `allowCredentials`는 false
+- **Refresh Token을 httpOnly 쿠키로 주고받으므로 `allowCredentials(true)`가 필수다.** 와일드카드(`*`) 오리진은 `allowCredentials(true)`와 함께 쓸 수 없으므로 명시적 오리진 목록만 허용한다.
+  - 로컬(`localhost:3000` ↔ `localhost:8080`)은 same-site이므로 `SameSite=Lax`로 동작한다.
+  - 운영(Amplify 도메인 ↔ API 도메인)은 cross-site이므로 쿠키에 `SameSite=None; Secure`가 필요하다. 이 값은 프로파일별로 분리한다.
+- 프론트의 모든 인증 요청은 `credentials: 'include'`로 보낸다(`apiClient` 공통 설정).
 
 ### 구글 OAuth2 흐름
 
@@ -496,8 +535,8 @@ CORS 요구대로 `FRONTEND_URL`에 쉼표 목록을 넣으면, `OAuth2SuccessHa
    - 신규 이메일 → `provider=GOOGLE`로 가입
    - 기존 GOOGLE 계정 → 조회
    - **동일 이메일의 LOCAL 계정 존재 → 거부**
-4. 성공 시 JWT 생성 후 `{FRONTEND_URL}/oauth/callback?token=xxx`로 **302 리다이렉트**
-5. 프론트 콜백 페이지가 토큰 저장 → URL에서 제거 → `/todos`로 이동
+4. 성공 시 Access Token 생성 + Refresh Token 발급(httpOnly 쿠키로 심음, `/auth/login`과 동일한 방식) 후 `{FRONTEND_URL}/oauth/callback?token=xxx`(Access Token만)로 **302 리다이렉트**
+5. 프론트 콜백 페이지가 Access Token 저장 → URL에서 제거 → `/todos`로 이동
 
 ### 구글 가입 시 nickname 결정
 
@@ -870,13 +909,17 @@ onSettled: () => {
 
 `exception/` 패키지에 `BusinessException`(+ `ErrorCode` enum)과 `GlobalExceptionHandler`(`@RestControllerAdvice`)를 구현한다.
 
-| 예외                        | 상태 | 코드               |
-| --------------------------- | ---- | ------------------ |
-| 유효성 검증 실패            | 400  | `INVALID_INPUT`    |
-| 인증 실패 / 토큰 만료       | 401  | `UNAUTHORIZED`     |
-| 권한 없음                   | 403  | `FORBIDDEN`        |
-| 리소스 없음 / 소유자 불일치 | 404  | `TODO_NOT_FOUND`   |
-| 이메일 중복 (회원가입)      | 409  | `EMAIL_DUPLICATED` |
-| 서버 오류                   | 500  | `INTERNAL_ERROR`   |
+| 예외                          | 상태 | 코드                     |
+| ----------------------------- | ---- | ------------------------ |
+| 유효성 검증 실패              | 400  | `INVALID_INPUT`          |
+| 인증 실패(자격 증명 불일치 등) | 401  | `UNAUTHORIZED`           |
+| **Access Token 만료**         | 401  | **`TOKEN_EXPIRED`**      |
+| **Refresh Token 무효·재사용** | 401  | **`INVALID_REFRESH_TOKEN`** |
+| 권한 없음                     | 403  | `FORBIDDEN`              |
+| 리소스 없음 / 소유자 불일치   | 404  | `TODO_NOT_FOUND`         |
+| 이메일 중복 (회원가입)        | 409  | `EMAIL_DUPLICATED`       |
+| 서버 오류                     | 500  | `INTERNAL_ERROR`         |
+
+> **v1.9 추가**: `TOKEN_EXPIRED`는 프론트가 `/auth/refresh`를 자동 시도하는 신호로 쓰고(6장), 그 외 `UNAUTHORIZED`는 즉시 로그아웃 처리한다. 이 둘을 같은 코드로 묶으면 프론트가 매번 불필요한 refresh 시도를 하게 된다. `INVALID_REFRESH_TOKEN`은 `/auth/refresh` 자체가 거부될 때만 쓴다(`PRD.md` 5.1).
 
 - **OAuth 계정 충돌은 이 표에 없다.** REST 응답이 아니라 `?error=email_conflict` 쿼리를 붙인 302 리다이렉트로 처리하므로 에러 코드를... (10KB 남음)

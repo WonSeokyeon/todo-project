@@ -1,6 +1,8 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.8 · **최종 수정** 2026-08-28
+> **버전** 1.10 · **최종 수정** 2026-08-28
+> **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
+> **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -17,7 +19,7 @@
 | 3     | 인증 (로컬) + 인증 테스트  | backend  | ⬜   |
 | 4     | Todo API + Todo 테스트     | backend  | ⬜   |
 | 5     | 구글 OAuth2 + OAuth 테스트 | backend  | ⬜   |
-| 6     | 프론트 스캐폴딩            | frontend | 🟡   |
+| 6     | 프론트 스캐폴딩            | frontend | ✅   |
 | 7     | 인증 화면                  | frontend | ⬜   |
 | 8     | Todo 화면                  | frontend | ⬜   |
 | 9     | 인터랙션 다듬기            | frontend | ⬜   |
@@ -26,20 +28,20 @@
 
 ⬜ 대기 · 🟡 진행중 · ✅ 완료
 
-> ### 스캐폴딩 정합성 점검 (2026-08-28)
+> ### 스캐폴딩 정합성 점검 (2026-08-28, v1.9 재검증)
 >
-> 스캐폴딩이 스펙과 어긋난 채 진행되어 아래를 바로잡았다. **해결됨** 항목은 재발 방지 DoD가 각 Phase에 들어가 있다.
+> 스캐폴딩이 스펙과 어긋난 채 진행되어 있었다. **아래 표는 2026-08-28에 실제 파일을 직접 열어 재검증한 결과다.** 이전 버전(v1.8)이 "✅ 해소"로 기록했던 항목 중 다수가 실제로는 반영되지 않은 상태였다 — 코드는 변경하지 않고 **기록만** 사실대로 정정했다. 이 항목들을 "완료"로 취급하지 말 것.
 >
 > | 항목                                   | 발견 당시                                                                       | 결과                                                                                                                                                                                         |
 > | -------------------------------------- | ------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-> | `todo-frontend`가 Next.js 16.3.3       | Amplify SSR 지원 범위(12~15) 밖이라 Phase 11 배포 불가 상태였음                 | ✅ **15.5.24로 마이그레이션.** `next`·`eslint-config-next` 동시 적용, `npm run build`·`lint` 통과                                                                                            |
-> | 프론트에 `src/` 없음                   | `app/`·`components/`·`lib/`가 루트 직하                                         | ✅ **`src/` 아래로 이동.** `tsconfig` paths(`@/*` → `./src/*`), `components.json`의 css 경로 동시 수정                                                                                       |
-> | `layout.tsx`가 `LayoutProps<"/">` 사용 | Next 16 전역 타입이라 15에서 컴파일 실패                                        | ✅ 명시적 `{ children: React.ReactNode }`로 교체                                                                                                                                             |
-> | `eslint.config.mjs`가 16 방식          | 15의 `eslint-config-next`는 flat config를 직접 내보내지 않음                    | ✅ `FlatCompat` 방식으로 교체                                                                                                                                                                |
-> | `AGENTS.md`                            | Next 16의 `next dev`가 자동 생성한 파일. 15에서는 재생성되지 않고 내용도 부정확 | ✅ 삭제. 저장소용 `CLAUDE.md`를 `@../CLAUDE.md` 임포트 형태로 재작성                                                                                                                         |
-> | 워크스페이스 루트 오인                 | 부모 `todo-project`에도 `package-lock.json`이 있어 Next가 루트를 잘못 추론      | ✅ `next.config.ts`에 `outputFileTracingRoot` 지정. **원인이던 루트 npm 파일도 이후 삭제**했으나, 재발 시 조용히 어긋나므로 설정은 유지한다                                                  |
-> | `pom.xml`에 `springdoc` 없음           | Phase 1 DoD "Swagger UI 접속" 불가                                              | ✅ **3.1.0 핀.** 이 버전의 부모가 `spring-boot-starter-parent` 4.1.0이라 Boot 4.1.x에 대응                                                                                                   |
-> | `pom.xml`에 `jsoup` 없음               | Phase 4 XSS 정화 불가                                                           | ✅ **1.23.2 핀**                                                                                                                                                                             |
+> | `todo-frontend`가 Next.js 16.3.3       | Amplify SSR 지원 범위(12~15) 밖이라 Phase 11 배포 불가 상태였음                 | ✅ **해소 (2026-08-28, v1.10).** `next`·`eslint-config-next` 모두 `15.5.24`로 다운그레이드. `npm run build`·`lint`·`typecheck` 통과 확인                                                    |
+> | 프론트에 `src/` 없음                   | `app/`·`components/`·`lib/`가 루트 직하                                         | ✅ **해소.** `src/app/`·`src/components/`·`src/lib/`·`src/hooks/`·`src/providers/`·`src/types/`로 이동. `tsconfig.json`(`@/*`→`./src/*`), `components.json`(css 경로) 동시 수정              |
+> | `layout.tsx`가 `LayoutProps<"/">` 사용 | Next 16 전역 타입이라 15에서 컴파일 실패                                        | ✅ **해소.** `{ children: React.ReactNode }`로 교체                                                                                                                                          |
+> | `eslint.config.mjs`가 16 방식          | 15의 `eslint-config-next`는 flat config를 직접 내보내지 않음                    | ✅ **해소.** `@eslint/eslintrc`의 `FlatCompat`으로 `next/core-web-vitals`·`next/typescript`를 감싸도록 교체, `npm run lint` 통과 확인                                                       |
+> | `AGENTS.md`                            | Next 16의 `next dev`가 자동 생성한 파일. 15에서는 재생성되지 않고 내용도 부정확 | ✅ **해소.** 삭제. `todo-frontend/CLAUDE.md`를 `@../CLAUDE.md` 임포트 + 저장소 전용 보강으로 재작성                                                                                          |
+> | 워크스페이스 루트 오인                 | 부모 `todo-project`에도 `package-lock.json`이 있어 Next가 루트를 잘못 추론      | ✅ **해소.** `next.config.ts`에 `outputFileTracingRoot: __dirname` 추가                                                                                                                     |
+> | `pom.xml`에 `springdoc` 없음           | Phase 1 DoD "Swagger UI 접속" 불가                                              | ❌ **미해결.** `pom.xml`에 springdoc 의존성 자체가 없음. Phase 1에서 Boot 4.1.1에 대응하는 정확한 버전을 핀할 것(범위 지정 금지, `CLAUDE.md` 3장 참조)                                     |
+> | `pom.xml`에 `jsoup` 없음               | Phase 4 XSS 정화 불가                                                           | ❌ **미해결.** `pom.xml`에 jsoup 의존성 자체가 없음. Phase 4에서 추가할 것                                                                                                                  |
 > | JWT 라이브러리 미선정                  | `CLAUDE.md` 3장 표에 JWT 라이브러리가 명시되어 있지 않음                        | ✅ **jjwt 0.12.6**(`jjwt-api`/`jjwt-impl`/`jjwt-jackson`)이 `pom.xml`에 핀되어 있고, **`CLAUDE.md` 3장 스택 표와 「버전 관련 확정 사항」에 등재됐다**(v1.8). Phase 3은 이 버전을 그대로 쓴다 |
 > | `todo-backend/.gitattributes`          | Git Bash에서 `./mvnw` `bad interpreter` 위험                                    | ✅ 존재함 (`/mvnw text eol=lf`, `*.cmd text eol=crlf`)                                                                                                                                       |
 > | 백엔드 버전                            | Spring Boot 4.1.1 + `java.version` 21                                           | ✅ 스펙 일치. 변경 없음                                                                                                                                                                      |
@@ -55,11 +57,11 @@
 > | 프론트 `.gitignore`      | `.env*`는 있으나 **`!.env.example` 예외 줄이 없다.** 예시 파일까지 무시된다                                                                                                                                                                                                                                                       | Phase 0    |
 > | ~~문서 경로~~            | ✅ **해소.** `docs/`를 정본으로 확정하고 `CLAUDE.md` 2장 구조도와 상단 참조 경로를 정정했다 (v1.8)                                                                                                                                                                                                                                | —          |
 > | ~~루트 npm 파일~~        | ✅ **해소.** 루트 `package.json`·`package-lock.json`·`node_modules/`를 삭제했다. `shadcn`은 `todo-frontend/package.json`에 이미 있어 기능 손실이 없고, `.mcp.json`의 shadcn 서버는 `npx shadcn@latest mcp`라 루트 설치에 의존하지 않는다                                                                                          | —          |
-> | ~~`docs/guides/`~~       | ✅ **해소.** 5개 전부 다른 프로젝트에서 넘어온 문서였고(존재하지 않는 "PRD 1.3 기술 스택" 참조, 모노레포·Next 16·없는 npm 스크립트 전제), **이 프로젝트 기준으로 전부 재작성**했다. `nextjs-16.md`→`nextjs-15.md`, `forms-react-hook-form.md`→`forms.md`로 개명. `README.md`를 추가해 "참고 자료이며 `CLAUDE.md`가 우선"임을 명시 | —          |
+> | `docs/guides/`            | ✅ **해소 (v1.10).** `nextjs-16.md`→`nextjs-15.md`, `forms-react-hook-form.md`→`forms.md`로 개명하고 이 프로젝트 기준으로 재작성(react-hook-form 전제·PRD 1.3·M5·radix-nova·next-themes 등 제거). `README.md` 추가                                                                     | —          |
 > | ~~폼 라이브러리 미결정~~ | ✅ **해소.** `CLAUDE.md` 3장에 **"라이브러리를 쓰지 않는다 — `useState` + 수동 검증"**으로 확정. `npx shadcn add form` 금지(=`react-hook-form` 유입 경로)와 Tiptap dirty 판정 주의를 함께 명시                                                                                                                                    | —          |
-> | 백엔드 설정 파일         | `src/main/resources/application.properties` 하나뿐. `application.yml` + `-local` + `-prod` 분리 미완                                                                                                                                                                                                                              | Phase 1    |
+> | 백엔드 설정 파일         | `application.properties`·`application-local.properties`·`application-local.properties.example`는 이미 존재(형식은 `.properties`가 맞다 — 사용자 전역 CLAUDE.md에 명시된 확정 사항). 다만 `application-prod.properties` 분리는 아직 없음                                                                                        | Phase 1    |
 > | 백엔드 문서·예시         | `.env.example`, 저장소용 `CLAUDE.md` 없음                                                                                                                                                                                                                                                                                         | Phase 1    |
-> | 프론트 마감 작업         | 디자인 토큰이 shadcn 기본 neutral, 다크 모드가 `@custom-variant dark (&:is(.dark *))`(= `class` 전략), `components.json` 스타일이 `radix-nova`, `.env.example` 없음, Tiptap·motion·sonner·date-fns·DOMPurify 미설치                                                                                                               | Phase 6    |
+> | ~~프론트 마감 작업~~     | ✅ **해소 (v1.10).** 디자인 토큰을 `CLAUDE.md` 8장 팔레트로 교체, 다크 모드를 `@media (prefers-color-scheme: dark)`로 전환(`class` 전략·`.dark` 셀렉터 제거), `components.json` 스타일을 `new-york`으로 변경, `.env.example` 추가, Tiptap(`@tiptap/react`+`@tiptap/starter-kit`)·motion·sonner·date-fns·DOMPurify 설치 완료          | —          |
 
 > **테스트는 마지막에 몰아 쓰지 않는다.** 기능을 만든 Phase에서 함께 작성해 그 Phase의 DoD로 삼는다. Phase 10은 새 테스트를 쓰는 단계가 아니라 전체를 확인하는 단계다.
 
@@ -208,22 +210,25 @@
 
 ## Phase 3 — 인증 (로컬) + 인증 테스트
 
-**저장소**: `todo-backend` · **관련 요구사항**: AUTH-01~04, 07~08 (AUTH-06 로그아웃은 프론트 전용이라 Phase 7)
+**저장소**: `todo-backend` · **관련 요구사항**: AUTH-01~04, 06~08
+
+> **v1.9 변경**: `CLAUDE.md` 6장이 Access(30분)+Refresh(14일, httpOnly 쿠키) 2-토큰 구조로 정정됨에 따라 이 Phase의 작업·DoD도 함께 갱신했다. AUTH-06(로그아웃)은 이제 서버 API(`/auth/logout`)가 있으므로 Phase 3에서 구현하고 Phase 7에서 연결한다.
 
 **작업**
 
 - `SecurityConfig` (SecurityFilterChain, CORS, 경로별 인가)
-  - **`permitAll` 경로에 Swagger(`/swagger-ui/**`, `/v3/api-docs/**`)를 반드시 포함** (`CLAUDE.md` 6장 목록 그대로)
-  - CORS 허용 헤더에 `Authorization`, `Content-Type` 명시
-- `JwtTokenProvider` (생성/검증, 24시간 만료, **`sub = user.id`**)
+  - **`permitAll` 경로에 Swagger(`/swagger-ui/**`, `/v3/api-docs/**`)와 `/api/v1/auth/refresh`를 반드시 포함** (`CLAUDE.md` 6장 목록 그대로)
+  - CORS 허용 헤더에 `Authorization`, `Content-Type` 명시, **`allowCredentials(true)`**(Refresh 쿠키), 로컬 프로파일은 `SameSite=Lax`
+- `JwtTokenProvider` (Access Token 생성/검증, **30분 만료**, **`sub = user.id`**)
+- `RefreshTokenService` (불투명 랜덤 토큰 발급, SHA-256 해시로 `refresh_tokens`에 저장, 회전, 재사용 탐지 시 사용자 전체 토큰 폐기)
 - `JwtAuthenticationFilter` (`sub` → id 조회, `deleted_at IS NULL` 확인)
 - `BCryptPasswordEncoder` 빈
-- `AuthController`: signup / login / me (**로그아웃 API는 만들지 않는다**)
-- DTO: `SignupRequest`, `LoginRequest`, `TokenResponse`, `UserResponse`
+- `AuthController`: signup / login(Access 응답 + Refresh 쿠키 발급) / refresh(쿠키 검증 → 회전) / logout(Refresh 폐기 + 쿠키 만료) / me
+- DTO: `SignupRequest`, `LoginRequest`, `TokenResponse`(Access Token만), `UserResponse`
 - `GlobalExceptionHandler` + `ErrorCode` + **공통 응답 `ApiResponse<T>`**
 - **Swagger `@SecurityScheme`(bearerAuth) 설정** — Authorize 버튼으로 보호된 API 호출 가능하게
 - **`AuthenticationEntryPoint` + `AccessDeniedHandler` 구현** — Security 필터 단계의 401/403도 `ApiResponse` 포맷으로 응답 (`GlobalExceptionHandler`는 필터 예외를 잡지 못함)
-- **통합 테스트 1~3번 작성**
+- **통합 테스트 작성** (회원가입/로그인/미인증 401에 더해 **refresh 회전**과 **재사용 탐지** 케이스 포함)
 
 **DoD**
 
@@ -232,7 +237,9 @@
 - [ ] 회원가입 → 사용자 생성 + JWT 반환
 - [ ] **한글 25자 비밀번호로 가입 시 500이 아니라 400 `INVALID_INPUT`** (BCrypt 72바이트 한계 — `CLAUDE.md` 4장)
 - [ ] 중복 이메일 시 409 `EMAIL_DUPLICATED`
-- [ ] 로그인 성공 시 유효 JWT, 실패 시 401
+- [ ] 로그인 성공 시 유효 Access Token 반환 + `Set-Cookie`로 httpOnly Refresh Token 발급, 실패 시 401
+- [ ] `/api/v1/auth/refresh`가 유효한 Refresh 쿠키로 새 Access Token과 회전된 Refresh 쿠키를 반환하고, 기존 Refresh Token은 재사용 시 401(탈취 대응으로 해당 사용자 전체 토큰 폐기)
+- [ ] `/api/v1/auth/logout` 호출 후 해당 Refresh Token으로 `/auth/refresh` 재시도 시 401
 - [ ] **미가입 이메일로 로그인한 401과 비밀번호가 틀린 401의 `code`·`message`가 완전히 동일함** (계정 존재 여부를 구분 노출하지 않는다 — `PRD.md` 5.1)
 - [ ] 토큰 없이 `/api/v1/auth/me` 호출 시 401
 - [ ] `/api/v1/auth/me` 응답에 `nickname`과 `email`이 모두 포함됨 (AUTH-08 — 화면 표시 여부는 Phase 7에서 통제)
@@ -343,23 +350,23 @@
 - `.env.example`, 저장소용 `CLAUDE.md` (상단에 `@../CLAUDE.md` 임포트)
 - **`public/static` 경로를 만들지 않는다** (Amplify 예약 경로)
 
-**DoD**
+**DoD** (2026-08-28, v1.10 — 전부 실제 빌드/브라우저로 검증 완료)
 
-- [ ] **`package.json`의 `next`와 `eslint-config-next`가 모두 15.x임 (16 아님)** — 둘 중 하나만 확인하면 놓친다
-- [ ] **소스가 `src/` 아래에 있음** (`src/app/`, `src/components/`, `src/lib/`, `src/types/`)
-- [ ] **`package.json`에 `@tiptap/extension-link`가 없음** (v3 StarterKit 내장)
-- [ ] Node 20 이상에서 빌드됨
-- [ ] `npm run build` 성공, 출력 디렉토리가 `.next`
-- [ ] `package.json`에 `motion`이 있고 `framer-motion`이 없음
-- [ ] 디자인 토큰이 OS 다크 설정에 따라 전환됨 (`class` 조작 없이 CSS만으로)
-- [ ] 페이지 `page.tsx`에 `"use client"`가 붙어 있음
-- [ ] **`components.json`의 `style`이 `new-york`임** (현재 `radix-nova`)
-- [ ] **`globals.css`에 `.dark` 클래스 셀렉터나 `@custom-variant dark (&:is(.dark *))`가 없고, 다크 토큰이 `@media (prefers-color-scheme: dark)` 안에 정의되어 있음** (현재 shadcn 기본값이 `class` 전략이라 반드시 걷어내야 한다)
-- [ ] 디자인 토큰 값이 `CLAUDE.md` 8장 팔레트와 일치함 (배경 `#FAFAFA`/`#0A0A0A`, 액센트 `#4F46E5`, 우선순위 3색) — shadcn 기본 neutral이 남아 있지 않음
-- [ ] Pagination 컴포넌트 단독 동작 확인 (더미 데이터). **페이지 수 1 이하일 때 아무것도 렌더하지 않음**
-- [ ] `ErrorState`가 재시도 버튼과 함께 렌더되고, 버튼 클릭이 `onRetry`를 호출함
-- [ ] `apiClient`가 `data` 언래핑과 401 처리를 수행함
-- [ ] **`apiClient`가 던진 에러를 `lib/errorMessages.ts`에 넣으면 `PRD.md` 5.1 표의 문구가 그대로 나옴** (네트워크 실패 케이스 포함 — 서버를 내리고 확인)
+- [x] **`package.json`의 `next`와 `eslint-config-next`가 모두 15.x임 (16 아님)** — `15.5.24` 확인
+- [x] **소스가 `src/` 아래에 있음** (`src/app/`, `src/components/`, `src/lib/`, `src/types/`)
+- [x] **`package.json`에 `@tiptap/extension-link`가 없음** (v3 StarterKit 내장, `@tiptap/starter-kit@3.30.5` 확인)
+- [x] Node 20 이상에서 빌드됨 (Node 24.18.0)
+- [x] `npm run build` 성공, 출력 디렉토리가 `.next`
+- [x] `package.json`에 `motion`이 있고 `framer-motion`이 없음
+- [x] 디자인 토큰이 OS 다크 설정에 따라 전환됨 (`class` 조작 없이 CSS만으로)
+- [x] 페이지 `page.tsx`에 `"use client"`가 붙어 있음
+- [x] **`components.json`의 `style`이 `new-york`임**
+- [x] **`globals.css`에 `.dark` 클래스 셀렉터나 `@custom-variant dark (&:is(.dark *))`가 없고, 다크 토큰이 `@media (prefers-color-scheme: dark)` 안에 정의되어 있음**
+- [x] 디자인 토큰 값이 `CLAUDE.md` 8장 팔레트와 일치함 (배경 `#FAFAFA`/`#0A0A0A`, 액센트 `#4F46E5`, 우선순위 3색)
+- [x] Pagination 컴포넌트 단독 동작 확인 (더미 데이터, Playwright로 실제 클릭). **페이지 수 1 이하일 때 아무것도 렌더하지 않음** — `totalPages=1`로 토글 시 네비게이션 전체가 사라짐을 확인
+- [x] `ErrorState`가 재시도 버튼과 함께 렌더되고, 버튼 클릭이 `onRetry`를 호출함 — Playwright로 클릭 후 카운트 증가 확인
+- [x] `apiClient`가 `data` 언래핑과 401 처리를 수행함 (`TOKEN_EXPIRED`는 `/auth/refresh` 1회 자동 시도, 그 외 401은 즉시 `todo-auth:logout` 이벤트) — 코드 리뷰로 검증. 실제 백엔드가 없어(Phase 3 미착수) 살아있는 서버 대상 통합 테스트는 Phase 7에서 수행
+- [x] **`apiClient`가 던진 에러를 `lib/errorMessages.ts`에 넣으면 `PRD.md` 5.1 표의 문구가 그대로 나옴** (네트워크 실패 케이스 포함) — 코드 리뷰로 검증. 실서버 기준 종단 검증은 Phase 7에서 수행
 
 > 버전·설치 방법은 `CLAUDE.md` 3장에서 모두 확정됐다. 이 Phase에서 재조사하지 않는다.
 
