@@ -2,8 +2,8 @@
 
 이 문서는 TailwindCSS v4 + shadcn/ui를 활용한 스타일링 규칙과 모범 사례를 제공합니다.
 
-> ⚠️ **스택 사실의 단일 출처는 [PRD 1.3](../PRD.md#13-기술-스택)이다.** 이 가이드의 서술이 PRD와 어긋나면 PRD를 따른다.
-> 특히 **미설치 라이브러리를 `import` 하지 않는다** — PRD 1.3의 "설치 상태" 열을 먼저 확인할 것.
+> ⚠️ **스택 사실의 단일 출처는 `CLAUDE.md` 3장이다.** 이 가이드의 서술이 CLAUDE.md와 어긋나면 CLAUDE.md를 따른다.
+> 특히 **미설치 라이브러리를 `import` 하지 않는다** — `todo-frontend/package.json`의 실제 설치 상태를 먼저 확인할 것.
 
 
 ## 🎨 기술 스택 개요
@@ -11,13 +11,10 @@
 ### 핵심 스타일링 도구
 
 - **TailwindCSS v4**: 유틸리티 기반 CSS 프레임워크 — ✅ 설치됨
-- **shadcn/ui**: Radix UI 기반 컴포넌트 라이브러리 — ✅ 설치됨. style은 **`radix-nova`**, baseColor는 `neutral` (`components.json` 기준. new-york 아님)
+- **shadcn/ui**: Radix UI 기반 컴포넌트 라이브러리 — ✅ 설치됨. style은 **`new-york`**, baseColor는 `neutral` (`components.json` 기준)
 - **tw-animate-css**: 애니메이션 라이브러리 — ✅ 설치됨
 - **CSS Variables**: 동적 테마 시스템
-- **next-themes**: 다크모드 지원 — ⏳ **미설치. M5에서 설치**
-- **prettier-plugin-tailwindcss**: 자동 클래스 정렬 — ⏳ **미설치** (도입 여부 미확정)
-
-> 아래 `next-themes` 예시는 M5에서 설치한 뒤 적용한다.
+- **prettier-plugin-tailwindcss**: 자동 클래스 정렬 — ✅ 설치됨(`package.json` devDependencies)
 
 ## 🚀 TailwindCSS v4 사용 규칙
 
@@ -184,50 +181,24 @@ npx shadcn@latest add
 
 ## 🌓 다크모드 구현
 
-### next-themes 활용
+> ⚠️ **이 프로젝트는 `next-themes`를 쓰지 않는다.** 토글 UI가 MVP 범위 밖으로 확정되어 있고(`CLAUDE.md` 8장), 토글이 없는 상태에서 `next-themes`의 `class` 전략을 쓰면 서버 렌더 시점에 클래스가 없어 라이트로 그려졌다가 클라이언트에서 다크로 바뀌는 FOUC만 생긴다.
 
-```tsx
-// providers/theme-provider.tsx
-import { ThemeProvider as NextThemesProvider } from 'next-themes'
+### `prefers-color-scheme` 미디어쿼리만 사용
 
-export function ThemeProvider({ children, ...props }) {
-  return (
-    <NextThemesProvider
-      attribute="class"
-      defaultTheme="system"
-      enableSystem
-      disableTransitionOnChange
-      {...props}
-    >
-      {children}
-    </NextThemesProvider>
-  )
+디자인 토큰을 라이트/다크 양쪽으로 정의하고 `@media (prefers-color-scheme: dark)`로 전환한다. CSS만으로 처리되어 hydration 문제가 없고 Provider나 토글 컴포넌트가 필요 없다.
+
+```css
+@theme {
+  --color-background: #fafafa; /* 라이트 값으로 유틸리티 생성 */
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #0a0a0a; /* 값만 교체 */
+  }
 }
 ```
 
-### 테마 토글 컴포넌트
-
-```tsx
-import { useTheme } from 'next-themes'
-import { Moon, Sun } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-
-export function ThemeToggle() {
-  const { theme, setTheme } = useTheme()
-
-  return (
-    <Button
-      variant="outline"
-      size="icon"
-      onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
-    >
-      <Sun className="h-4 w-4 scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-      <Moon className="absolute h-4 w-4 scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
-      <span className="sr-only">테마 전환</span>
-    </Button>
-  )
-}
-```
+`@theme`은 Tailwind v4에서 최상위에만 올 수 있어 `@media` 안에 중첩할 수 없다(`CLAUDE.md` 8장). 라이트 값을 `@theme`에 한 번 선언하고, 다크 값은 생성된 커스텀 프로퍼티를 `:root`에서 덮어쓴다.
 
 ### 다크모드 대응 스타일링
 

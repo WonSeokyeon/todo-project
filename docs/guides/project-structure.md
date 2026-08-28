@@ -1,33 +1,30 @@
 # 프로젝트 구조 가이드
 
-이 문서는 **`todo-frontend`(Next.js 16 App Router)** 의 폴더 구조, 파일 조직 및 네이밍 컨벤션을 정의합니다.
-전체 모노레포 구조와 백엔드 구조는 [PRD.md 2장](../PRD.md)을 기준으로 합니다.
+이 문서는 **`todo-frontend`(Next.js 15 App Router)** 의 폴더 구조, 파일 조직 및 네이밍 컨벤션을 정의합니다.
+전체 저장소 구조는 `CLAUDE.md` 2장을 기준으로 합니다(폴리레포 3저장소 — `CLAUDE.md` 참조).
 
-> ⚠️ **이 프로젝트는 `src/` 디렉토리를 사용하지 않습니다.**
-> `app/`, `components/`, `lib/`가 `todo-frontend/` 루트에 직접 위치합니다.
-> (`components.json`의 alias가 `@/components`·`@/lib`이고 css 경로가 `app/globals.css`인 것과 일치)
-> 다른 문서나 예시에서 `src/app/...` 경로를 보더라도, 이 프로젝트에서는 `src/`를 빼고 읽으십시오.
+> ⚠️ **이 프로젝트는 `src/` 디렉토리를 사용합니다.** `app/`, `components/`, `lib/`가 `todo-frontend/src/` 아래에 위치합니다(`tsconfig.json`의 `@/*` → `./src/*`, `components.json`의 css 경로가 `src/app/globals.css`인 것과 일치).
 
 ## 🏗️ 전체 프로젝트 구조
 
 ```
-todo-project/                 # 모노레포 루트
+todo-project/                 # 문서 저장소
 ├── docs/                     # 📚 프로젝트 문서
 │   ├── PRD.md               # 무엇을 만들 것인가
-│   ├── ROADMAP.md           # 어떤 순서로 만들 것인가
-│   ├── API_SPEC.md          # API 요청/응답 상세
-│   └── guides/              # 개발 가이드 모음 (이 문서)
-├── CLAUDE.md                 # 개발 지침 메인 문서
-├── todo-backend/             # ⚙️ Spring Boot (com.example)
-└── todo-frontend/            # 🚀 Next.js 16
-    ├── app/                 # App Router (src/ 없음!)
-    ├── components/          # 🧩 React 컴포넌트
-    ├── lib/                 # 🛠️ 유틸리티 및 API 클라이언트
-    ├── hooks/               # 🪝 React Query 훅
-    ├── providers/           # 🔧 Context 프로바이더
-    ├── types/               # 📐 공통 타입
+│   ├── ROADMAP.md           # 어떤 순서로 만들 것인가 + 완료 판정
+│   └── guides/              # 개발 가이드 모음 (참고 자료, 이 문서)
+├── CLAUDE.md                 # 개발 지침 메인 문서(SSOT)
+├── todo-backend/             # ⚙️ Spring Boot (com.example.todoapp, 독립 git 저장소)
+└── todo-frontend/            # 🚀 Next.js 15 (독립 git 저장소)
+    └── src/
+        ├── app/                 # App Router
+        ├── components/          # 🧩 React 컴포넌트
+        ├── lib/                 # 🛠️ 유틸리티 및 API 클라이언트
+        ├── hooks/               # 🪝 React Query 훅
+        ├── providers/           # 🔧 Context 프로바이더
+        └── types/               # 📐 공통 타입
     ├── public/              # 🌍 정적 파일
-    ├── components.json      # shadcn/ui 설정 (style: radix-nova)
+    ├── components.json      # shadcn/ui 설정 (style: new-york)
     ├── next.config.ts       # Next.js 설정
     ├── tsconfig.json        # TypeScript 설정
     └── package.json         # 의존성 및 스크립트
@@ -35,13 +32,15 @@ todo-project/                 # 모노레포 루트
 
 ## 📁 세부 폴더 구조
 
-### app/ - App Router 페이지
+### src/app/ - App Router 페이지
 
 ```
-app/
-├── layout.tsx                    # 🎨 루트 레이아웃 (Providers)
+src/app/
+├── layout.tsx                    # 🎨 루트 레이아웃 (서버 컴포넌트, Provider 분리)
+├── providers.tsx                 # 🔧 클라이언트 Provider 모음(QueryProvider 등)
 ├── page.tsx                      # 🏠 진입 — 토큰 유무로 리다이렉트
 ├── globals.css                   # 🎨 Tailwind 4 CSS-first 설정 + 디자인 토큰
+├── fonts/                        # 🔤 Pretendard 가변 폰트(.woff2)
 ├── favicon.ico                   # 🔖 파비콘
 ├── (auth)/                       # 🔐 비인증 라우트 그룹
 │   ├── login/page.tsx           # 로그인 페이지
@@ -52,7 +51,7 @@ app/
 │       ├── page.tsx             # Todo 목록 (페이지네이션)
 │       ├── new/page.tsx         # Todo 작성
 │       └── [id]/page.tsx        # Todo 상세/편집
-└── oauth2/callback/page.tsx      # OAuth2 콜백 (토큰 수신)
+└── oauth/callback/page.tsx       # OAuth2 콜백 (토큰 수신, CLAUDE.md 7장 경로)
 ```
 
 **🚀 App Router 규칙:**
@@ -64,19 +63,21 @@ app/
 - `error.tsx`: 에러 UI (필요시)
 - `not-found.tsx`: 404 페이지 (필요시)
 
-### components/ - 컴포넌트 조직
+### src/components/ - 컴포넌트 조직
 
 ```
-components/
+src/components/
 ├── ui/                     # 🎛️ 기본 UI 컴포넌트 (shadcn/ui, 자동 생성)
 │   ├── button.tsx
 │   ├── card.tsx
 │   ├── input.tsx
 │   └── ...
 ├── common/                 # 🧱 전역 공통 컴포넌트
-│   ├── Pagination.tsx     # ✅ 재사용 페이지네이션 (불변 규칙 7)
-│   ├── Header.tsx         # 공통 헤더
-│   └── ThemeToggle.tsx    # 🌓 다크모드 토글
+│   ├── Pagination.tsx     # ✅ 재사용 페이지네이션
+│   ├── EmptyState.tsx
+│   ├── ErrorState.tsx     # onRetry 필수 prop
+│   ├── Skeleton.tsx
+│   └── Header.tsx         # 공통 헤더(닉네임·로그아웃)
 ├── auth/                   # 🔐 인증 관련
 │   ├── LoginForm.tsx
 │   ├── SignupForm.tsx
