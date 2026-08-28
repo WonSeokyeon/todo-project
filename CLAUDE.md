@@ -127,7 +127,7 @@ Claude Code는 현재 디렉토리에서 **상위 디렉토리로 거슬러 올�
 | HTML 정화      | **Jsoup**                                                                         |
 | API 문서       | SpringDoc OpenAPI (Swagger UI)                                                    |
 | DB             | PostgreSQL                                                                        |
-| 패키지명       | `com.example`                                                                     |
+| 패키지명       | `com.example.todoapp`                                                             |
 
 ### Frontend
 
