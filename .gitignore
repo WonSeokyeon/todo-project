@@ -1,0 +1,36 @@
+# ============================================
+# 루트 저장소 (문서 및 프로젝트 메타데이터)
+# todo-frontend / todo-backend 는 각각 독립 저장소이므로
+# 이 저장소의 추적 대상에서 제외한다.
+# ============================================
+
+# 하위 독립 저장소 (별도 git 저장소로 관리)
+/todo-frontend/
+/todo-backend/
+
+# Eclipse / STS 워크스페이스 메타데이터
+.metadata/
+*.log
+
+# 작업 도구 데이터
+shrimp_data/
+
+# Claude Code 로컬 설정 (개인 설정이므로 공유하지 않음)
+.claude/settings.local.json
+
+# 환경변수 / 비밀 (CLAUDE.md 절대규칙 9)
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# OS 산출물
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 에디터
+.idea/
+*.iml
+*.swp
