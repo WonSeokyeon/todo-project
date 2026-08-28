@@ -8,6 +8,9 @@
 /todo-frontend/
 /todo-backend/
 
+# 루트에 실수로 npm 파일이 생성되는 것을 방지 (재발 방지용)
+node_modules/
+
 # Eclipse / STS 워크스페이스 메타데이터
 .metadata/
 *.log
@@ -17,6 +20,11 @@ shrimp_data/
 
 # Claude Code 로컬 설정 (개인 설정이므로 공유하지 않음)
 .claude/settings.local.json
+.claude/plans/
+
+# 세션 작업 산출물 (프로젝트 스펙과 무관한 스크래치 파일)
+scaffold-check.png
+.playwright-mcp/
 
 # 환경변수 / 비밀 (CLAUDE.md 절대규칙 9)
 .env
