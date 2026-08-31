@@ -1,6 +1,6 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.15 · **최종 수정** 2026-08-31
+> **버전** 1.16 · **최종 수정** 2026-08-31
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
@@ -8,6 +8,7 @@
 > **v1.13 변경**: Phase 1(백엔드 스캐폴딩)을 실제 명령 실행으로 재검증 후 완료(✅) 처리했다. springdoc 3.1.0·jsoup 1.21.1 의존성 추가, 계층별 패키지 골격, `application-prod.properties`, `.env.example`·`todo-backend/CLAUDE.md`를 반영했다. 검증 중 `spring-boot-starter-security`가 이미 있어 `SecurityConfig` 없이는 Swagger DoD가 401로 막힘을 발견해 사용자 확인 후 최소 `SecurityConfig`(swagger·api-docs·error·actuator/health만 permitAll)를 선반영했다 — 전체 보안 설정은 여전히 Phase 3에서 완성한다. DoD 9개 전부 실측 통과(`dependency:tree` 성공, local 프로파일 기동, Swagger UI 200, `.env` gitignore 정상 동작).
 > **v1.14 변경**: Phase 2 작업 목록에 남아있던 `application-test.yml` 표기를 `.properties`로 정정했다. `createdb todolist_db`가 이미 완료된 상태임을 반영하고, 테스트 DB명(`todolist_test`)이 부모 `CLAUDE.md` 절대규칙 2(`todolist_db_test`)와 다르다는 점을 각주로 남겼다 — 이 프로젝트는 지금까지 모든 문서 충돌에서 프로젝트 SSOT(이 문서·`todo-project/CLAUDE.md`)를 채택해 왔으므로 `todolist_test`로 통일한다.
 > **v1.15 변경**: Phase 2(도메인 & DB)를 실제 명령 실행으로 재검증 후 완료(✅) 처리했다. `BaseEntity`·`Priority`·`AuthProvider`·`User`·`Todo`·`UserRepository`·`TodoRepository`, `application-test.properties`, Repository 단위 테스트 4건을 반영했다. 검증 중 `hibernate.jdbc.time_zone=UTC` 설정만으로는 `created_at`이 UTC로 저장되지 않는 실제 버그(9시간 어긋남)를 테스트로 발견해 `DateTimeProvider` 빈으로 근본 수정했고, Spring Boot 4에서 `@DataJpaTest`·`@AutoConfigureTestDatabase`의 패키지가 재편된 사실도 확인해 남겼다. DoD 6개 전부 실측 통과.
+> **v1.16 변경**: Phase 3(인증 로컬 + 인증 테스트)을 실제 curl·테스트 실행으로 재검증 후 완료(✅) 처리했다. RefreshToken 엔티티, 공통 응답·예외 처리 인프라, `@MaxByteLength` 검증기, JWT·RefreshTokenService, `JwtAuthenticationFilter`, `SecurityConfig` 확장(CSRF·STATELESS·CORS·EntryPoint), 인증 DTO·`AuthService`·`AuthController`, Swagger `bearerAuth`, 통합 테스트 7건을 반영했다. 검증 중 두 가지 실제 버그를 발견해 수정했다: (1) Spring Boot 4의 Jackson 3(`tools.jackson.*`) 전환으로 `com.fasterxml.jackson.databind.ObjectMapper` 주입이 실패하던 문제, (2) `REQUIRES_NEW`가 self-invocation에서 무시되어 탈취 대응(전체 토큰 폐기)이 트랜잭션 롤백에 함께 취소되던 보안 버그(`TransactionTemplate`으로 수정). DoD 17개 전부 실측 통과.
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -21,7 +22,7 @@
 | 0     | 저장소 초기화              | 전체     | ✅   |
 | 1     | 백엔드 스캐폴딩            | backend  | ✅   |
 | 2     | 도메인 & DB                | backend  | ✅   |
-| 3     | 인증 (로컬) + 인증 테스트  | backend  | ⬜   |
+| 3     | 인증 (로컬) + 인증 테스트  | backend  | ✅   |
 | 4     | Todo API + Todo 테스트     | backend  | ⬜   |
 | 5     | 구글 OAuth2 + OAuth 테스트 | backend  | ⬜   |
 | 6     | 프론트 스캐폴딩            | frontend | ✅   |
@@ -238,26 +239,28 @@
 - **Swagger `@SecurityScheme`(bearerAuth) 설정** — Authorize 버튼으로 보호된 API 호출 가능하게
 - **`AuthenticationEntryPoint` + `AccessDeniedHandler` 구현** — Security 필터 단계의 401/403도 `ApiResponse` 포맷으로 응답 (`GlobalExceptionHandler`는 필터 예외를 잡지 못함)
 - **통합 테스트 작성** (회원가입/로그인/미인증 401에 더해 **refresh 회전**과 **재사용 탐지** 케이스 포함)
+- **Spring Boot 4는 Jackson 3(`tools.jackson.*`)를 쓴다 (2026-08-31 실측 발견).** `ObjectMapper`를 직접 주입받는 코드(예: `AuthenticationEntryPoint`·`AccessDeniedHandler`에서 수동 JSON 직렬화)는 `com.fasterxml.jackson.databind.ObjectMapper`(Jackson 2 — jjwt-jackson이 런타임 전이 의존성으로 끌어오지만 스프링 빈으로는 등록되지 않는다)가 아니라 **`tools.jackson.databind.ObjectMapper`**를 import해야 한다. 틀리면 `UnsatisfiedDependencyException`으로 기동 자체가 실패한다.
+- **`REQUIRES_NEW`는 self-invocation(같은 클래스 내부 호출)에서 무시된다 (2026-08-31 실측 발견).** `RefreshTokenService.rotate()`가 재사용을 감지해 전체 토큰을 폐기한 뒤 `BusinessException`을 던지면, 프록시를 거치지 않는 내부 호출이라 `REQUIRES_NEW`가 적용되지 않아 호출자 트랜잭션 롤백에 전체 폐기까지 함께 취소된다(탈취 대응 무효화). `PlatformTransactionManager` + `TransactionTemplate`으로 프록시 없이 직접 새 트랜잭션을 열어야 한다. `@Lazy` self-주입은 Lombok `@RequiredArgsConstructor`가 필드의 `@Lazy`를 생성자 파라미터에 복사하지 않아 순환참조 오류가 나므로 쓰지 않는다.
 
-**DoD**
+**DoD** (2026-08-31 실측 검증 완료)
 
-- [ ] **`POST /api/v1/auth/signup`이 403이 아니라 200/409로 응답** (CSRF 비활성화 확인 — 안 하면 여기서 전부 막힌다)
-- [ ] **응답에 `Set-Cookie: JSESSIONID`가 없음** (`STATELESS` 세션 정책 확인)
-- [ ] 회원가입 → 사용자 생성 + JWT 반환
-- [ ] **한글 25자 비밀번호로 가입 시 500이 아니라 400 `INVALID_INPUT`** (BCrypt 72바이트 한계 — `CLAUDE.md` 4장)
-- [ ] 중복 이메일 시 409 `EMAIL_DUPLICATED`
-- [ ] 로그인 성공 시 유효 Access Token 반환 + `Set-Cookie`로 httpOnly Refresh Token 발급, 실패 시 401
-- [ ] `/api/v1/auth/refresh`가 유효한 Refresh 쿠키로 새 Access Token과 회전된 Refresh 쿠키를 반환하고, 기존 Refresh Token은 재사용 시 401(탈취 대응으로 해당 사용자 전체 토큰 폐기)
-- [ ] `/api/v1/auth/logout` 호출 후 해당 Refresh Token으로 `/auth/refresh` 재시도 시 401
-- [ ] **미가입 이메일로 로그인한 401과 비밀번호가 틀린 401의 `code`·`message`가 완전히 동일함** (계정 존재 여부를 구분 노출하지 않는다 — `PRD.md` 5.1)
-- [ ] 토큰 없이 `/api/v1/auth/me` 호출 시 401
-- [ ] `/api/v1/auth/me` 응답에 `nickname`과 `email`이 모두 포함됨 (AUTH-08 — 화면 표시 여부는 Phase 7에서 통제)
-- [ ] 비밀번호가 DB에 해시로 저장됨
-- [ ] **Security 도입 후에도 Swagger UI 접속 가능** (Phase 1 DoD 회귀 방지)
-- [ ] Swagger Authorize에 토큰을 넣고 `/auth/me` 호출이 200으로 성공
-- [ ] 모든 응답이 `{success, data, error}` 포맷을 따름
-- [ ] **토큰 없이 호출한 401 응답도** `{success:false, error:{code:"UNAUTHORIZED"}}` 포맷임
-- [ ] **인증 통합 테스트 3건 통과**
+- [x] **`POST /api/v1/auth/signup`이 403이 아니라 200/409로 응답** (CSRF 비활성화 확인 — 안 하면 여기서 전부 막힌다)
+- [x] **응답에 `Set-Cookie: JSESSIONID`가 없음** (`STATELESS` 세션 정책 확인) — curl로 헤더 직접 확인
+- [x] 회원가입 → 사용자 생성 + JWT 반환
+- [x] **한글 25자 비밀번호로 가입 시 500이 아니라 400 `INVALID_INPUT`** (BCrypt 72바이트 한계 — `CLAUDE.md` 4장)
+- [x] 중복 이메일 시 409 `EMAIL_DUPLICATED`
+- [x] 로그인 성공 시 유효 Access Token 반환 + `Set-Cookie`로 httpOnly Refresh Token 발급, 실패 시 401
+- [x] `/api/v1/auth/refresh`가 유효한 Refresh 쿠키로 새 Access Token과 회전된 Refresh 쿠키를 반환하고, 기존 Refresh Token은 재사용 시 401(탈취 대응으로 해당 사용자 전체 토큰 폐기) — 트랜잭션 롤백 버그를 실측으로 발견해 수정 후 재검증
+- [x] `/api/v1/auth/logout` 호출 후 해당 Refresh Token으로 `/auth/refresh` 재시도 시 401
+- [x] **미가입 이메일로 로그인한 401과 비밀번호가 틀린 401의 `code`·`message`가 완전히 동일함** (계정 존재 여부를 구분 노출하지 않는다 — `PRD.md` 5.1) — 응답 본문 문자열 완전 일치를 테스트로 확인
+- [x] 토큰 없이 `/api/v1/auth/me` 호출 시 401
+- [x] `/api/v1/auth/me` 응답에 `nickname`과 `email`이 모두 포함됨 (AUTH-08 — 화면 표시 여부는 Phase 7에서 통제)
+- [x] 비밀번호가 DB에 해시로 저장됨 — `psql`로 `$2a$10$...` BCrypt 해시 확인
+- [x] **Security 도입 후에도 Swagger UI 접속 가능** (Phase 1 DoD 회귀 방지)
+- [x] Swagger Authorize에 토큰을 넣고 `/auth/me` 호출이 200으로 성공 — `v3/api-docs`의 `bearerAuth` 스킴 노출 + curl로 Bearer 헤더 호출 200 확인(Authorize 버튼과 동일한 인증 경로)
+- [x] 모든 응답이 `{success, data, error}` 포맷을 따름
+- [x] **토큰 없이 호출한 401 응답도** `{success:false, error:{code:"UNAUTHORIZED"}}` 포맷임
+- [x] **인증 통합 테스트 3건 통과** — `AuthIntegrationTest` 7건 전부 통과(회원가입 2·로그인 2·me 1·refresh 회전/재사용 1·logout 1)
 
 ---
 
