@@ -1,6 +1,6 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.17 · **최종 수정** 2026-08-31
+> **버전** 1.18 · **최종 수정** 2026-08-31
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
@@ -10,6 +10,7 @@
 > **v1.15 변경**: Phase 2(도메인 & DB)를 실제 명령 실행으로 재검증 후 완료(✅) 처리했다. `BaseEntity`·`Priority`·`AuthProvider`·`User`·`Todo`·`UserRepository`·`TodoRepository`, `application-test.properties`, Repository 단위 테스트 4건을 반영했다. 검증 중 `hibernate.jdbc.time_zone=UTC` 설정만으로는 `created_at`이 UTC로 저장되지 않는 실제 버그(9시간 어긋남)를 테스트로 발견해 `DateTimeProvider` 빈으로 근본 수정했고, Spring Boot 4에서 `@DataJpaTest`·`@AutoConfigureTestDatabase`의 패키지가 재편된 사실도 확인해 남겼다. DoD 6개 전부 실측 통과.
 > **v1.16 변경**: Phase 3(인증 로컬 + 인증 테스트)을 실제 curl·테스트 실행으로 재검증 후 완료(✅) 처리했다. RefreshToken 엔티티, 공통 응답·예외 처리 인프라, `@MaxByteLength` 검증기, JWT·RefreshTokenService, `JwtAuthenticationFilter`, `SecurityConfig` 확장(CSRF·STATELESS·CORS·EntryPoint), 인증 DTO·`AuthService`·`AuthController`, Swagger `bearerAuth`, 통합 테스트 7건을 반영했다. 검증 중 두 가지 실제 버그를 발견해 수정했다: (1) Spring Boot 4의 Jackson 3(`tools.jackson.*`) 전환으로 `com.fasterxml.jackson.databind.ObjectMapper` 주입이 실패하던 문제, (2) `REQUIRES_NEW`가 self-invocation에서 무시되어 탈취 대응(전체 토큰 폐기)이 트랜잭션 롤백에 함께 취소되던 보안 버그(`TransactionTemplate`으로 수정). DoD 17개 전부 실측 통과.
 > **v1.17 변경**: Phase 4(Todo API + Todo 테스트)를 실제 curl·테스트·성능 측정으로 재검증 후 완료(✅) 처리했다. `HtmlSanitizer`(Jsoup Safelist), Todo DTO 4종·`PageResponse`, `TodoRepository.search()`, `TodoService`, `TodoController` 6개 엔드포인트, 시드 스크립트 2종(100건/10,000건), 통합 테스트 4건을 반영했다. 검증 중 두 가지 실제 버그를 발견해 수정했다: (1) `keyword`가 `NULL`일 때 PostgreSQL이 파라미터 타입을 추론 못해 목록 조회가 500이 나던 문제(JPQL `CAST(:keyword AS string)`로 해결), (2) PUT/toggle 응답의 `updatedAt`이 `@PreUpdate`(flush 시점) 이전 값으로 직렬화되던 문제(`flush()` 선호출로 해결). 성능 DoD는 10,000건 기준 중앙값 약 40ms로 500ms 기준을 여유 있게 통과했다. DoD 16개 전부 실측 통과.
+> **v1.18 변경**: Phase 5(구글 OAuth2)의 코드·단위 테스트를 완성했다 — `CustomOAuth2User`·`CustomOAuth2UserService`(신규가입/재조회/충돌거부/nickname 결정), `OAuth2SuccessHandler`·`OAuth2FailureHandler`, `SecurityConfig`의 `oauth2Login()` 연결, `CustomOAuth2UserServiceTest` 5건. 다만 실제 Google Cloud Console 자격증명(`GOOGLE_CLIENT_ID`/`SECRET`)이 아직 없어(사용자 확인 완료) 브라우저로 구글 로그인을 끝까지 밟아야 하는 DoD 4개는 **보류**로 명시하고, 진행 현황 표도 ✅가 아니라 🟡로 정정했다(단위 테스트만으로 로직은 검증했으나 실제 왕복은 미검증). `client-id`/`client-secret`에 `changeme` 자리표시자를 둬 자격증명 없이도 기동은 가능하게 했다. 자격증명 발급 후 사용자가 직접 로그인해 4개 DoD를 마저 체크하면 Phase 5가 ✅로 완료된다.
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -25,7 +26,7 @@
 | 2     | 도메인 & DB                | backend  | ✅   |
 | 3     | 인증 (로컬) + 인증 테스트  | backend  | ✅   |
 | 4     | Todo API + Todo 테스트     | backend  | ✅   |
-| 5     | 구글 OAuth2 + OAuth 테스트 | backend  | ⬜   |
+| 5     | 구글 OAuth2 + OAuth 테스트 | backend  | 🟡   |
 | 6     | 프론트 스캐폴딩            | frontend | ✅   |
 | 7     | 인증 화면                  | frontend | ⬜   |
 | 8     | Todo 화면                  | frontend | ⬜   |
@@ -324,17 +325,19 @@
 - `OAuth2SuccessHandler`: JWT 발급 후 `{FRONTEND_URL}/oauth/callback?token=` **302 리다이렉트**
 - `OAuth2FailureHandler`: 충돌 시 `{FRONTEND_URL}/login?error=email_conflict` **302 리다이렉트** (JSON 에러 응답을 반환하지 않는다)
 - **테스트 8번 작성 — 통합 테스트가 아니라 `CustomOAuth2UserService` 단위 테스트로 작성한다.** OAuth2 흐름은 실제 구글 서버와 통신하므로 MockMvc로 끝까지 검증할 수 없다 (`CLAUDE.md` 14장)
+- **⚠️ 2026-08-31 기준 Google Cloud Console에서 발급받은 실제 `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`이 없다.** 사용자와 확인해 코드·단위 테스트까지 먼저 완성하고, 실제 브라우저로 구글 로그인을 끝까지 밟아야 확인되는 DoD는 자격증명 발급 후 사용자가 직접 검증하기로 했다. `client-id`/`client-secret`에 `changeme` 자리표시자 기본값을 둬서, 자격증명이 없어도 애플리케이션 기동 자체는 실패하지 않게 했다(실측 확인 — 값이 비어 있으면 `OAuth2ClientPropertiesRegistrationAdapter`가 기동 시점에 즉시 예외를 던진다).
+- **부가 발견**: `oauth2Login()`은 인가 요청~콜백 사이 state/PKCE 값을 저장하기 위해 Spring Security 표준 동작으로 `JSESSIONID` 세션 쿠키를 임시 발급한다. Phase 3의 STATELESS 원칙과 별개로 OAuth2 로그인 왕복 구간에서만 쓰이는 정상 동작이며, 로그인 완료 후에는 우리 앱의 JWT 기반 인증에 영향을 주지 않는다.
 
 **계정 충돌 정책 (확정)**
 동일 이메일의 로컬 계정이 있으면 **거부한다.** 자동 연동하지 않고, 별도 계정도 만들지 않는다. 상세는 `CLAUDE.md` 6장.
 
-**DoD**
+**DoD** (2026-08-31 기준 — 코드·단위 테스트는 실측 완료, 실제 구글 로그인 왕복이 필요한 항목은 자격증명 발급 후 사용자 직접 검증 필요로 명시)
 
-- [ ] 구글 로그인 후 JWT를 담은 302 리다이렉트 발생
-- [ ] 신규 사용자가 `provider=GOOGLE`, nickname이 채워진 상태로 저장됨
-- [ ] 재로그인 시 중복 계정이 생기지 않음
-- [ ] 동일 이메일 로컬 계정 존재 시 `error=email_conflict`로 302 리다이렉트
-- [ ] **OAuth 서비스 단위 테스트 1건 통과**
+- [ ] 구글 로그인 후 JWT를 담은 302 리다이렉트 발생 — ⏸ **보류.** `/oauth2/authorization/google`이 실제 구글 인가 URL로 302 리다이렉트되는 것까지는 curl로 확인했으나(`client_id=changeme`), 구글 로그인 완료 후 콜백까지 이어지는 전체 왕복은 실제 `GOOGLE_CLIENT_ID`/`SECRET` 발급 후 브라우저로 검증해야 한다.
+- [ ] 신규 사용자가 `provider=GOOGLE`, nickname이 채워진 상태로 저장됨 — ⏸ **보류(단위 테스트로 로직만 검증).** `CustomOAuth2UserServiceTest`가 `resolveUser()`로 이 로직을 직접 검증했으나, 실제 DB 저장까지 이어지는 전체 흐름은 실제 로그인 시 확인 필요.
+- [ ] 재로그인 시 중복 계정이 생기지 않음 — ⏸ **보류(단위 테스트로 로직만 검증).** `기존_GOOGLE_계정이면_그대로_조회하고_중복_생성하지_않는다` 테스트로 확인했으나, 실제 재로그인 흐름은 보류.
+- [ ] 동일 이메일 로컬 계정 존재 시 `error=email_conflict`로 302 리다이렉트 — ⏸ **보류(단위 테스트로 예외 발생만 검증).** `OAuth2FailureHandler`가 항상 `email_conflict`로 리다이렉트하는 코드는 작성·컴파일 확인했으나 실제 302 응답은 보류.
+- [x] **OAuth 서비스 단위 테스트 1건 통과** — `CustomOAuth2UserServiceTest` 5건(신규가입/재조회/충돌거부/닉네임 미지정/닉네임 절삭) 전부 통과, 전체 스위트 21건 회귀 없음
 
 ---
 
