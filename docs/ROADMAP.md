@@ -1,9 +1,11 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.11 · **최종 수정** 2026-08-28
+> **버전** 1.13 · **최종 수정** 2026-08-31
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
+> **v1.12 변경**: Phase 1의 작업 목록·DoD에 남아있던 `application.yml` 계열 서술을 `.properties` 유지 결정(`CLAUDE.md` v1.10)에 맞게 정정했다. `application.properties`·`application-local.properties`는 이미 존재하므로 재작업 대상이 아니며, 실제로 남은 작업은 `application-prod.properties` 신규 작성뿐임을 명시했다. `.gitignore`의 `.env*`/`!.env.example` 규칙도 이미 커밋되어 있음을 반영했다.
+> **v1.13 변경**: Phase 1(백엔드 스캐폴딩)을 실제 명령 실행으로 재검증 후 완료(✅) 처리했다. springdoc 3.1.0·jsoup 1.21.1 의존성 추가, 계층별 패키지 골격, `application-prod.properties`, `.env.example`·`todo-backend/CLAUDE.md`를 반영했다. 검증 중 `spring-boot-starter-security`가 이미 있어 `SecurityConfig` 없이는 Swagger DoD가 401로 막힘을 발견해 사용자 확인 후 최소 `SecurityConfig`(swagger·api-docs·error·actuator/health만 permitAll)를 선반영했다 — 전체 보안 설정은 여전히 Phase 3에서 완성한다. DoD 9개 전부 실측 통과(`dependency:tree` 성공, local 프로파일 기동, Swagger UI 200, `.env` gitignore 정상 동작).
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -15,7 +17,7 @@
 | Phase | 내용                       | 저장소   | 상태 |
 | ----- | -------------------------- | -------- | ---- |
 | 0     | 저장소 초기화              | 전체     | ✅   |
-| 1     | 백엔드 스캐폴딩            | backend  | 🟡   |
+| 1     | 백엔드 스캐폴딩            | backend  | ✅   |
 | 2     | 도메인 & DB                | backend  | ⬜   |
 | 3     | 인증 (로컬) + 인증 테스트  | backend  | ⬜   |
 | 4     | Todo API + Todo 테스트     | backend  | ⬜   |
@@ -159,23 +161,23 @@
 - 의존성: Web, Data JPA, Security, Validation, PostgreSQL Driver, OAuth2 Client, Lombok, **Jsoup**(HTML 정화), **jjwt**(JWT 생성·검증)
 - **SpringDoc OpenAPI는 `springdoc-openapi-starter-webmvc-ui` 3.x를 명시한다.** 2.8.x는 Spring Boot 3.x 전용이라 기동에 실패한다
 - 패키지 골격 생성: `domain / service / controller / dto / config / exception`
-- **`application.properties`를 삭제하고 `application.yml`로 교체한다** (현재 저장소에는 `.properties`만 있다). 이어 `application-local.yml` + **`application-prod.yml`** 분리, 환경변수 바인딩 (프로파일별 `ddl-auto`는 `CLAUDE.md` 12장 표 참조)
-  > ⚠️ 둘을 동시에 두면 `.properties`가 `.yml`보다 우선 적용되어, `.yml`에 적은 설정이 조용히 무시된다.
-- **`application.yml`에 `spring.profiles.active: local` 기본값 지정** (없으면 DB 정보 없이 기동을 시도해 실패)
-- `.gitignore`(**`.env*` + `!.env.example` 추가** — 현재 Initializr 기본값이라 `.env` 규칙이 없다), `.env.example`, 저장소용 `CLAUDE.md` 작성 (상단에 `@../CLAUDE.md` 임포트)
+- **설정 파일 형식은 `.properties`로 유지한다** (`CLAUDE.md` v1.10 정정 — 부모 CLAUDE.md 절대규칙 9 및 기존 파일과 정합). `application.properties`·`application-local.properties`는 이미 존재하므로 재작업하지 않고, **`application-prod.properties`를 신규 작성**해 운영 전용 값(`ddl-auto=validate` 등)만 오버라이드한다 (프로파일별 `ddl-auto`는 `CLAUDE.md` 12장 표 참조)
+- **`spring.profiles.active` 기본값 지정** — `application.properties`에 이미 `${SPRING_PROFILES_ACTIVE:local}`로 존재함 (없으면 DB 정보 없이 기동을 시도해 실패)
+- `.gitignore`(**`.env*` + `!.env.example`**)는 이미 커밋되어 있음 — 재작업 불필요. `.env.example`, 저장소용 `CLAUDE.md` 작성 (상단에 `@../CLAUDE.md` 임포트)
 - `.gitattributes`는 이미 있다(`/mvnw text eol=lf`). **삭제하거나 덮어쓰지 않는다** (`CLAUDE.md` 13장)
+- **`config/SecurityConfig` 최소 선반영 (2026-08-31 추가)** — `spring-boot-starter-security`가 이미 의존성에 있어 `SecurityConfig` 없이는 모든 경로가 기본 Basic Auth(401)로 잠기고 Swagger DoD를 통과할 수 없음이 실측으로 드러났다. `/swagger-ui/**`·`/v3/api-docs/**`·`/error`·`/actuator/health`(부모 `CLAUDE.md` 절대규칙 9)만 `permitAll`하고 나머지는 `authenticated()`로 두는 `SecurityFilterChain` 빈만 추가했다. **CSRF 비활성화·STATELESS 세션·JWT 필터 등 전체 설정은 그대로 Phase 3에서 이 빈을 확장해 완성한다.**
 
-**DoD**
+**DoD** (2026-08-31 실측 검증 완료)
 
-- [ ] `pom.xml`의 SpringDoc이 **현재 Boot 버전에 대응하는 정확한 3.x 버전으로 핀**되어 있음 (범위 지정 금지 — `CLAUDE.md` 3장)
-- [ ] `pom.xml`에 **`jsoup`이 포함**되어 있음 (Phase 4의 XSS 정화 전제)
-- [ ] `pom.xml`에 **jjwt 3종(`jjwt-api`/`jjwt-impl`/`jjwt-jackson`)이 동일 버전으로 핀**되어 있음 (Phase 3의 `JwtTokenProvider` 전제)
-- [ ] `./mvnw dependency:tree` 오류 없음
-- [ ] **`src/main/resources`에 `application.properties`가 없고 `application.yml`·`application-local.yml`·`application-prod.yml`이 있음**
-- [ ] `./mvnw spring-boot:run`이 옵션 없이 local 프로파일로 기동 성공
-- [ ] **기동 로그에 `The following 1 profile is active: "local"`이 찍힘**
-- [ ] `http://localhost:8080/swagger-ui/index.html`이 200으로 열리고 API 목록 화면이 렌더됨
-- [ ] `git check-ignore -v .env`가 규칙에 매칭되고 `.env.example`은 매칭되지 않음
+- [x] `pom.xml`의 SpringDoc이 **현재 Boot 버전에 대응하는 정확한 3.x 버전으로 핀**되어 있음 (범위 지정 금지 — `CLAUDE.md` 3장) — `springdoc-openapi-starter-webmvc-ui:3.1.0` 확인
+- [x] `pom.xml`에 **`jsoup`이 포함**되어 있음 (Phase 4의 XSS 정화 전제) — `jsoup:1.21.1` 확인
+- [x] `pom.xml`에 **jjwt 3종(`jjwt-api`/`jjwt-impl`/`jjwt-jackson`)이 동일 버전으로 핀**되어 있음 (Phase 3의 `JwtTokenProvider` 전제) — 0.12.6 3종 확인
+- [x] `./mvnw dependency:tree` 오류 없음 — `BUILD SUCCESS`
+- [x] **`src/main/resources`에 `application.properties`·`application-local.properties`·`application-prod.properties` 3종이 있고 `.yml` 파일은 없음**
+- [x] `./mvnw spring-boot:run`이 옵션 없이 local 프로파일로 기동 성공
+- [x] **기동 로그에 `The following 1 profile is active: "local"`이 찍힘**
+- [x] `http://localhost:8080/swagger-ui/index.html`이 200으로 열리고 API 목록 화면이 렌더됨 — `v3/api-docs`도 200으로 OpenAPI JSON 정상 응답. **위 `SecurityConfig` 최소 선반영 이후 통과** (선반영 전에는 401)
+- [x] `git check-ignore -v .env`가 규칙에 매칭되고 `.env.example`은 매칭되지 않음 — `git add .env.example`로 실제 스테이징까지 재확인
 
 > SpringDoc 버전은 `CLAUDE.md` 3장에서 3.x로 확정됐다. 다시 조사하거나 2.x로 되돌리지 않는다.
 

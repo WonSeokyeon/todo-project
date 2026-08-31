@@ -1,6 +1,7 @@
 # Todo List 프로젝트 개발 가이드
 
-> **버전** 1.9 · **최종 수정** 2026-08-28
+> **버전** 1.10 · **최종 수정** 2026-08-31
+> **v1.10 변경**: 2장 저장소 구조도와 4장 UTC 타임존 설정 지시문에 남아있던 `application.yml` 계열 언급을 `application.properties` 계열로 정정했다. 부모 CLAUDE.md 절대규칙 9와 실제 `todo-backend`에 이미 존재하는 파일 형식이 `.properties`였음을 근거로 `.properties` 유지가 확정됐다(설정 파일 형식은 애초에 바뀐 적이 없고, 이 문서의 서술이 stale했던 것).
 > **v1.9 변경**: 6장 인증 설계를 Access(30분)+Refresh(14일, httpOnly 쿠키) 2-토큰 구조로 정정(기존 서술은 `docs/PRD.md`가 이미 전제하던 설계와 반대였음). 4장에 `refresh_tokens` 테이블, 5장에 `/auth/refresh`·`/auth/logout` API를 추가했다. 코드는 아직 없으므로 문서만 수정.
 > 이 문서는 **기술 규칙의 단일 기준(Single Source of Truth)**이다.
 > 코드 생성 전 반드시 이 문서를 확인하고, 문서와 충돌하는 구현을 하지 않는다.
@@ -47,12 +48,12 @@ todo-project/                    # [저장소 1] 문서 저장소
 │       │   ├── config/          # Security, JWT, Swagger, CORS 설정
 │       │   └── exception/       # 예외 처리
 │       ├── main/resources/
-│       │   ├── application.yml
-│       │   ├── application-local.yml
-│       │   └── application-prod.yml
+│       │   ├── application.properties
+│       │   ├── application-local.properties
+│       │   └── application-prod.properties
 │       └── test/
 │           ├── java/com/example/
-│           └── resources/application-test.yml
+│           └── resources/application-test.properties
 │
 └── todo-frontend/               # [저장소 3] 독립 저장소
     ├── .git/
@@ -277,7 +278,7 @@ private String password;
 
 로컬 개발 환경은 KST(+09:00)이고 RDS 기본 타임존은 UTC다. 아무 조치 없이 `LocalDateTime`을 쓰면 **로컬에서 만든 데이터와 운영 데이터의 시각이 9시간 어긋나고**, 배포 후에야 드러난다.
 
-- `application.yml`에 `spring.jpa.properties.hibernate.jdbc.time_zone: UTC`를 설정한다.
+- `application.properties`에 `spring.jpa.properties.hibernate.jdbc.time_zone=UTC`를 설정한다.
 - 저장·비교는 전부 UTC로 한다. 표시할 때만 브라우저 로컬 시각으로 변환한다(프론트 `date-fns`).
 - `due_date`는 `LocalDate`(시각 없음)라 타임존 영향을 받지 않는다. `created_at`·`updated_at`·`deleted_at`만 해당된다.
 
