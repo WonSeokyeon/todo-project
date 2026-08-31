@@ -1,11 +1,13 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.13 · **최종 수정** 2026-08-31
+> **버전** 1.15 · **최종 수정** 2026-08-31
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
 > **v1.12 변경**: Phase 1의 작업 목록·DoD에 남아있던 `application.yml` 계열 서술을 `.properties` 유지 결정(`CLAUDE.md` v1.10)에 맞게 정정했다. `application.properties`·`application-local.properties`는 이미 존재하므로 재작업 대상이 아니며, 실제로 남은 작업은 `application-prod.properties` 신규 작성뿐임을 명시했다. `.gitignore`의 `.env*`/`!.env.example` 규칙도 이미 커밋되어 있음을 반영했다.
 > **v1.13 변경**: Phase 1(백엔드 스캐폴딩)을 실제 명령 실행으로 재검증 후 완료(✅) 처리했다. springdoc 3.1.0·jsoup 1.21.1 의존성 추가, 계층별 패키지 골격, `application-prod.properties`, `.env.example`·`todo-backend/CLAUDE.md`를 반영했다. 검증 중 `spring-boot-starter-security`가 이미 있어 `SecurityConfig` 없이는 Swagger DoD가 401로 막힘을 발견해 사용자 확인 후 최소 `SecurityConfig`(swagger·api-docs·error·actuator/health만 permitAll)를 선반영했다 — 전체 보안 설정은 여전히 Phase 3에서 완성한다. DoD 9개 전부 실측 통과(`dependency:tree` 성공, local 프로파일 기동, Swagger UI 200, `.env` gitignore 정상 동작).
+> **v1.14 변경**: Phase 2 작업 목록에 남아있던 `application-test.yml` 표기를 `.properties`로 정정했다. `createdb todolist_db`가 이미 완료된 상태임을 반영하고, 테스트 DB명(`todolist_test`)이 부모 `CLAUDE.md` 절대규칙 2(`todolist_db_test`)와 다르다는 점을 각주로 남겼다 — 이 프로젝트는 지금까지 모든 문서 충돌에서 프로젝트 SSOT(이 문서·`todo-project/CLAUDE.md`)를 채택해 왔으므로 `todolist_test`로 통일한다.
+> **v1.15 변경**: Phase 2(도메인 & DB)를 실제 명령 실행으로 재검증 후 완료(✅) 처리했다. `BaseEntity`·`Priority`·`AuthProvider`·`User`·`Todo`·`UserRepository`·`TodoRepository`, `application-test.properties`, Repository 단위 테스트 4건을 반영했다. 검증 중 `hibernate.jdbc.time_zone=UTC` 설정만으로는 `created_at`이 UTC로 저장되지 않는 실제 버그(9시간 어긋남)를 테스트로 발견해 `DateTimeProvider` 빈으로 근본 수정했고, Spring Boot 4에서 `@DataJpaTest`·`@AutoConfigureTestDatabase`의 패키지가 재편된 사실도 확인해 남겼다. DoD 6개 전부 실측 통과.
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -18,7 +20,7 @@
 | ----- | -------------------------- | -------- | ---- |
 | 0     | 저장소 초기화              | 전체     | ✅   |
 | 1     | 백엔드 스캐폴딩            | backend  | ✅   |
-| 2     | 도메인 & DB                | backend  | ⬜   |
+| 2     | 도메인 & DB                | backend  | ✅   |
 | 3     | 인증 (로컬) + 인증 테스트  | backend  | ⬜   |
 | 4     | Todo API + Todo 테스트     | backend  | ⬜   |
 | 5     | 구글 OAuth2 + OAuth 테스트 | backend  | ⬜   |
@@ -189,7 +191,7 @@
 
 **작업**
 
-- `createdb todolist_db` · `createdb todolist_test`
+- `createdb todolist_db`(2026-08-31 확인 결과 이미 존재) · `createdb todolist_test`(아직 없음, 이번 Phase에서 생성)
 - `BaseEntity` (`@MappedSuperclass`, JPA Auditing)
 - `User`, `Todo` 엔티티 + `Priority` enum + `AuthProvider` enum
 - **`Todo.user`는 `@ManyToOne(fetch = FetchType.LAZY)`** (기본값 EAGER 금지)
@@ -197,18 +199,21 @@
 - 입력값 제약을 스키마와 일치시킨다 (`CLAUDE.md` 4장 제약 표)
 - `UserRepository`, `TodoRepository` (`deleted_at IS NULL` 조건 포함 쿼리)
 - 인덱스 `idx_todos_user_deleted`
-- `src/test/resources/application-test.yml` (todolist_test, `ddl-auto: create-drop`)
+- `src/test/resources/application-test.properties` (`todolist_test`, `ddl-auto=create-drop`)
 - **`@EnableJpaAuditing`은 메인 애플리케이션 클래스에 붙인다** (`@Configuration`에 두면 `@DataJpaTest`가 로드하지 않아 `created_at`이 null이 됨)
 - Repository 테스트에 **`@AutoConfigureTestDatabase(replace = NONE)` + `@ActiveProfiles("test")`** 필수 (없으면 임베디드 DB로 교체 시도)
+  > ⚠️ **Spring Boot 4는 테스트 슬라이스 애노테이션 패키지를 재편했다.** Boot 3의 `org.springframework.boot.test.autoconfigure.orm.jpa.*`는 더 이상 없다. `@DataJpaTest`는 `org.springframework.boot.data.jpa.test.autoconfigure`, `@AutoConfigureTestDatabase`는 `org.springframework.boot.jdbc.test.autoconfigure`로 옮겨졌다(2026-08-31 실제 jar 내용으로 확인). Phase 3~5에서 `@WebMvcTest` 등 다른 슬라이스 애노테이션을 쓸 때도 옛 패키지를 그대로 가정하지 말 것.
+  > ⚠️ **테스트 DB명은 `todolist_test`다** (프로젝트 SSOT `todo-project/CLAUDE.md` 4장 기준). 부모 `CLAUDE.md`(`D:\my-workspace\claude\CLAUDE.md`) 절대규칙 2는 `todolist_db_test`를 쓰라고 하지만, 이 프로젝트는 폴리레포 구조·`.properties` 형식·Next.js 15·jjwt 등 지금까지 모든 문서 충돌에서 일관되게 이 프로젝트 SSOT를 채택해 왔으므로 같은 기준을 적용한다. 부모 문서는 수정 권한 밖(상위 폴더)이라 건드리지 않는다 — 혼동하지 않도록 여기 남긴다.
+- **`hibernate.jdbc.time_zone=UTC`만으로는 `created_at`/`updated_at`이 UTC로 저장되지 않는다 (2026-08-31 실측 발견)** — `@CreatedDate`/`@LastModifiedDate`가 기본으로 쓰는 `LocalDateTime.now()`는 JVM 기본 타임존(KST)의 벽시계 값을 그대로 반환하고, 이 설정은 그 값을 UTC로 변환해 주지 않는다(Repository 테스트에서 9시간 어긋남을 확인). **Auditing이 값을 만드는 시점 자체를 UTC로 고정해야 한다** — `TodoBackendApplication`에 `@EnableJpaAuditing(dateTimeProviderRef = "utcDateTimeProvider")`와 `LocalDateTime.now(ZoneOffset.UTC)`를 반환하는 `DateTimeProvider` 빈을 함께 둔다(같은 이유로 `@Configuration`이 아닌 메인 클래스). `Todo.softDelete()`처럼 엔티티가 직접 `LocalDateTime.now()`를 호출하는 곳도 전부 `LocalDateTime.now(ZoneOffset.UTC)`로 바꿔야 한다.
 
-**DoD**
+**DoD** (2026-08-31 실측 검증 완료)
 
-- [ ] 애플리케이션 기동 시 `users`, `todos` 테이블 자동 생성
-- [ ] `created_at`, `updated_at` 자동 기록 확인
-- [ ] Repository 단위 테스트(`@DataJpaTest`) 통과 — **통합 테스트 번호 체계(1~8)와 별개**
-- [ ] 테스트가 `todolist_test`를 바라보고 실행됨 (H2 사용하지 않음)
-- [ ] `@DataJpaTest`에서 `created_at`이 null이 아님 (Auditing 정상 동작)
-- [ ] 저장된 `created_at`이 UTC 기준임 (KST로 9시간 밀리지 않음)
+- [x] 애플리케이션 기동 시 `users`, `todos` 테이블 자동 생성 — `psql \d`로 컬럼·제약·FK·인덱스까지 확인
+- [x] `created_at`, `updated_at` 자동 기록 확인
+- [x] Repository 단위 테스트(`@DataJpaTest`) 통과 — **통합 테스트 번호 체계(1~8)와 별개**. `UserRepositoryTest` 2건, `TodoRepositoryTest` 2건 총 4건
+- [x] 테스트가 `todolist_test`를 바라보고 실행됨 (H2 사용하지 않음) — 로그의 `Database JDBC URL [jdbc:postgresql://localhost:5432/todolist_test]`, `org.postgresql.jdbc.PgConnection`으로 확인
+- [x] `@DataJpaTest`에서 `created_at`이 null이 아님 (Auditing 정상 동작)
+- [x] 저장된 `created_at`이 UTC 기준임 (KST로 9시간 밀리지 않음) — 위 `DateTimeProvider` 수정 후 `Duration.between(createdAt as UTC, Instant.now())`가 1분 이내임을 테스트로 확인
 
 ---
 
