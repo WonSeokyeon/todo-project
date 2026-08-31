@@ -1,6 +1,6 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.16 · **최종 수정** 2026-08-31
+> **버전** 1.17 · **최종 수정** 2026-08-31
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
@@ -9,6 +9,7 @@
 > **v1.14 변경**: Phase 2 작업 목록에 남아있던 `application-test.yml` 표기를 `.properties`로 정정했다. `createdb todolist_db`가 이미 완료된 상태임을 반영하고, 테스트 DB명(`todolist_test`)이 부모 `CLAUDE.md` 절대규칙 2(`todolist_db_test`)와 다르다는 점을 각주로 남겼다 — 이 프로젝트는 지금까지 모든 문서 충돌에서 프로젝트 SSOT(이 문서·`todo-project/CLAUDE.md`)를 채택해 왔으므로 `todolist_test`로 통일한다.
 > **v1.15 변경**: Phase 2(도메인 & DB)를 실제 명령 실행으로 재검증 후 완료(✅) 처리했다. `BaseEntity`·`Priority`·`AuthProvider`·`User`·`Todo`·`UserRepository`·`TodoRepository`, `application-test.properties`, Repository 단위 테스트 4건을 반영했다. 검증 중 `hibernate.jdbc.time_zone=UTC` 설정만으로는 `created_at`이 UTC로 저장되지 않는 실제 버그(9시간 어긋남)를 테스트로 발견해 `DateTimeProvider` 빈으로 근본 수정했고, Spring Boot 4에서 `@DataJpaTest`·`@AutoConfigureTestDatabase`의 패키지가 재편된 사실도 확인해 남겼다. DoD 6개 전부 실측 통과.
 > **v1.16 변경**: Phase 3(인증 로컬 + 인증 테스트)을 실제 curl·테스트 실행으로 재검증 후 완료(✅) 처리했다. RefreshToken 엔티티, 공통 응답·예외 처리 인프라, `@MaxByteLength` 검증기, JWT·RefreshTokenService, `JwtAuthenticationFilter`, `SecurityConfig` 확장(CSRF·STATELESS·CORS·EntryPoint), 인증 DTO·`AuthService`·`AuthController`, Swagger `bearerAuth`, 통합 테스트 7건을 반영했다. 검증 중 두 가지 실제 버그를 발견해 수정했다: (1) Spring Boot 4의 Jackson 3(`tools.jackson.*`) 전환으로 `com.fasterxml.jackson.databind.ObjectMapper` 주입이 실패하던 문제, (2) `REQUIRES_NEW`가 self-invocation에서 무시되어 탈취 대응(전체 토큰 폐기)이 트랜잭션 롤백에 함께 취소되던 보안 버그(`TransactionTemplate`으로 수정). DoD 17개 전부 실측 통과.
+> **v1.17 변경**: Phase 4(Todo API + Todo 테스트)를 실제 curl·테스트·성능 측정으로 재검증 후 완료(✅) 처리했다. `HtmlSanitizer`(Jsoup Safelist), Todo DTO 4종·`PageResponse`, `TodoRepository.search()`, `TodoService`, `TodoController` 6개 엔드포인트, 시드 스크립트 2종(100건/10,000건), 통합 테스트 4건을 반영했다. 검증 중 두 가지 실제 버그를 발견해 수정했다: (1) `keyword`가 `NULL`일 때 PostgreSQL이 파라미터 타입을 추론 못해 목록 조회가 500이 나던 문제(JPQL `CAST(:keyword AS string)`로 해결), (2) PUT/toggle 응답의 `updatedAt`이 `@PreUpdate`(flush 시점) 이전 값으로 직렬화되던 문제(`flush()` 선호출로 해결). 성능 DoD는 10,000건 기준 중앙값 약 40ms로 500ms 기준을 여유 있게 통과했다. DoD 16개 전부 실측 통과.
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -23,7 +24,7 @@
 | 1     | 백엔드 스캐폴딩            | backend  | ✅   |
 | 2     | 도메인 & DB                | backend  | ✅   |
 | 3     | 인증 (로컬) + 인증 테스트  | backend  | ✅   |
-| 4     | Todo API + Todo 테스트     | backend  | ⬜   |
+| 4     | Todo API + Todo 테스트     | backend  | ✅   |
 | 5     | 구글 OAuth2 + OAuth 테스트 | backend  | ⬜   |
 | 6     | 프론트 스캐폴딩            | frontend | ✅   |
 | 7     | 인증 화면                  | frontend | ⬜   |
@@ -285,26 +286,28 @@
   - `db/seed-dev.sql` — 테스트 계정 1개 + Todo **100건** (우선순위·완료·마감일 혼합). 페이지네이션·필터·정렬을 **눈으로** 확인하는 용도
   - `db/seed-perf.sql` — 같은 계정에 Todo **10,000건**. 성능 DoD 측정 전용. 제목에 검색 대상 키워드가 골고루 섞이도록 생성한다
 - **통합 테스트 4~7번 작성**
+- **PostgreSQL은 파라미터가 `NULL`일 때 정적 타입을 추론하지 못한다 (2026-08-31 실측 발견).** `TodoRepository.search()`의 `keyword`가 `NULL`인 채로 `LOWER(t.title) LIKE LOWER(CONCAT('%', :keyword, '%'))`를 그대로 쓰면 드라이버가 파라미터 타입을 `bytea`로 잘못 추론해 `lower(bytea) 이름의 함수가 없음` 오류로 **목록 조회 자체가 500이 난다.** JPQL에서 `CAST(:keyword AS string)`로 명시적으로 캐스팅해야 한다.
+- **`@LastModifiedDate`는 flush 시점에 채워진다 (2026-08-31 실측 발견).** `TodoService.update()`/`toggle()`이 엔티티를 변경한 직후 바로 `TodoResponse.from(todo)`로 응답을 만들면, `@PreUpdate` 콜백이 아직 실행되기 전이라 **응답의 `updatedAt`이 갱신 전 값으로 나간다**(DB에는 커밋 시 정상 저장되지만 그 요청의 응답만 stale). 응답을 만들기 전에 `todoRepository.flush()`를 호출해야 한다.
 
-**DoD**
+**DoD** (2026-08-31 실측 검증 완료)
 
-- [ ] 목록 API가 `{success, data:{content, page, ...}, error}` 형태로 응답
-- [ ] `PUT` 저장이 완료 상태를 덮어쓰지 않음
-- [ ] `toggle`을 같은 값으로 두 번 호출해도 결과가 동일함(멱등)
-- [ ] `completed` 미지정 시 전체 반환, `true`/`false` 시 필터 적용
-- [ ] 영문 대소문자를 섞어 검색해도 결과가 나옴
-- [ ] `?sort=foo,desc` 같은 잘못된 정렬 값에도 500이 나지 않음
-- [ ] 삭제 시 `deleted_at` 기록, 목록에서 제외
-- [ ] 타 사용자 Todo 접근 시 404
-- [ ] 제목 미입력·200자 초과 시 400 + 필드 메시지
-- [ ] 본문 50,000자 초과 시 400
-- [ ] `<script>` 포함 본문 저장 시 태그 제거, `a` 태그에 `rel` 주입 확인
-- [ ] **키워드 검색 포함** 목록 조회가 **워밍업 후 3회 측정 중앙값 500ms 이내** (로컬, 시드 **10,000건** 기준)
+- [x] 목록 API가 `{success, data:{content, page, ...}, error}` 형태로 응답
+- [x] `PUT` 저장이 완료 상태를 덮어쓰지 않음
+- [x] `toggle`을 같은 값으로 두 번 호출해도 결과가 동일함(멱등)
+- [x] `completed` 미지정 시 전체 반환, `true`/`false` 시 필터 적용
+- [x] 영문 대소문자를 섞어 검색해도 결과가 나옴 — `MEET`/`meet`/`MeEt` 모두 동일 결과로 curl 확인
+- [x] `?sort=foo,desc` 같은 잘못된 정렬 값에도 500이 나지 않음
+- [x] 삭제 시 `deleted_at` 기록, 목록에서 제외
+- [x] 타 사용자 Todo 접근 시 404
+- [x] 제목 미입력·200자 초과 시 400 + 필드 메시지
+- [x] 본문 50,000자 초과 시 400
+- [x] `<script>` 포함 본문 저장 시 태그 제거, `a` 태그에 `rel` 주입 확인
+- [x] **키워드 검색 포함** 목록 조회가 **워밍업 후 3회 측정 중앙값 500ms 이내** (로컬, 시드 **10,000건** 기준) — 워밍업 160ms, 측정 42.1ms/39.9ms/40.3ms(중앙값 약 40ms)로 여유 있게 통과
   > ⚠️ 시드 100건으로는 이 지표가 의미가 없다. 인덱스가 없어도 100행은 1ms 미만이라 **항상 통과한다.** `CLAUDE.md` 4장이 지목한 유일한 성능 위험(`LOWER(title) LIKE '%키워드%'`의 인덱스 미사용)을 검출하려면 데이터가 충분해야 하고, 측정 대상도 검색 경로여야 한다. 또 첫 요청은 JVM 콜드 스타트라 DB가 아니라 워밍업 상태를 재는 셈이 되므로 워밍업 후에 측정한다.
-- [ ] 날짜가 배열이 아닌 ISO 문자열로 직렬화됨
-- [ ] 목록 조회 시 user 조회 쿼리가 추가로 발생하지 않음
-- [ ] Swagger에서 전체 API 확인 가능
-- [ ] **Todo 통합 테스트 4건 통과**
+- [x] 날짜가 배열이 아닌 ISO 문자열로 직렬화됨
+- [x] 목록 조회 시 user 조회 쿼리가 추가로 발생하지 않음 — SQL 로그로 요청당 users 1회(인증 필터)·todos 1회·count 1회만 확인
+- [x] Swagger에서 전체 API 확인 가능 — `/v3/api-docs`에 인증 5개·Todo 6개 엔드포인트 전부 노출 확인
+- [x] **Todo 통합 테스트 4건 통과**
 
 ---
 
