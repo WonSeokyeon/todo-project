@@ -1,6 +1,7 @@
 # Todo List 프로젝트 개발 가이드
 
-> **버전** 1.10 · **최종 수정** 2026-08-31
+> **버전** 1.11 · **최종 수정** 2026-09-01
+> **v1.11 변경**: 9장 「`useAuth`는 `exp`를 봐야 한다」 절에 v1.9 이전 서술이 남아 있었다 — "`JWT_EXPIRATION`이 24시간이라 개발 중에는 만료를 만나기도 어렵다"는 근거가 두 군데 틀렸다. (1) v1.9에서 Access Token 만료를 **30분**으로 확정했으므로 24시간이 아니고, (2) `JWT_EXPIRATION`이라는 환경변수는 존재하지 않는다 — 실제 값은 `JwtTokenProvider.ACCESS_TOKEN_EXPIRATION`(`Duration.ofMinutes(30)`) 코드 상수다(`todo-backend` 실제 코드로 확인). 결론(`exp`를 디코드해야 한다)은 그대로 유효하며, 근거 문장만 사실에 맞게 고쳤다. 코드 변경은 없다.
 > **v1.10 변경**: 2장 저장소 구조도와 4장 UTC 타임존 설정 지시문에 남아있던 `application.yml` 계열 언급을 `application.properties` 계열로 정정했다. 부모 CLAUDE.md 절대규칙 9와 실제 `todo-backend`에 이미 존재하는 파일 형식이 `.properties`였음을 근거로 `.properties` 유지가 확정됐다(설정 파일 형식은 애초에 바뀐 적이 없고, 이 문서의 서술이 stale했던 것).
 > **v1.9 변경**: 6장 인증 설계를 Access(30분)+Refresh(14일, httpOnly 쿠키) 2-토큰 구조로 정정(기존 서술은 `docs/PRD.md`가 이미 전제하던 설계와 반대였음). 4장에 `refresh_tokens` 테이블, 5장에 `/auth/refresh`·`/auth/logout` API를 추가했다. 코드는 아직 없으므로 문서만 수정.
 > 이 문서는 **기술 규칙의 단일 기준(Single Source of Truth)**이다.
@@ -783,7 +784,7 @@ Next.js 15에서 `useSearchParams`를 쓰는 컴포넌트는 **`<Suspense>`로 �
 
 그러면 이런 순서가 된다 — 보호 레이아웃이 인증으로 판정 → 화면 렌더 → API 호출 → **401** → `apiClient`가 자동 로그아웃 → `/login`. 그 왕복 동안 **보호된 화면이 사용자에게 노출된다.** `AUTH-07`("토큰이 없거나 **만료된** 상태로 보호된 화면에 접근하면 로그인 화면으로 이동")의 위반이다.
 
-`JWT_EXPIRATION`이 24시간이라 개발 중에는 만료를 만나기도 어려워, 이 결함은 배포 후에 발견되기 쉽다.
+Access Token 만료는 **30분**이다(`JwtTokenProvider.ACCESS_TOKEN_EXPIRATION` 상수 — 환경변수가 아니다). 만료 자체는 개발 중에도 자주 만나지만, 이 결함은 **"보호 화면이 잠깐 보였다가 로그인으로 튕긴다"는 산발적 증상**으로만 드러나기 때문에 정상적인 세션 만료 동작으로 오해하기 쉽다. 재현하려면 만료된 토큰을 localStorage에 직접 넣고 진입해야 한다.
 
 ```ts
 // 서명 검증은 서버가 한다. 프론트는 만료 시각만 읽으면 된다.
