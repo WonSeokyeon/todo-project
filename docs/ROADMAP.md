@@ -1,6 +1,6 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.18 · **최종 수정** 2026-08-31
+> **버전** 1.19 · **최종 수정** 2026-09-01
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
@@ -11,6 +11,7 @@
 > **v1.16 변경**: Phase 3(인증 로컬 + 인증 테스트)을 실제 curl·테스트 실행으로 재검증 후 완료(✅) 처리했다. RefreshToken 엔티티, 공통 응답·예외 처리 인프라, `@MaxByteLength` 검증기, JWT·RefreshTokenService, `JwtAuthenticationFilter`, `SecurityConfig` 확장(CSRF·STATELESS·CORS·EntryPoint), 인증 DTO·`AuthService`·`AuthController`, Swagger `bearerAuth`, 통합 테스트 7건을 반영했다. 검증 중 두 가지 실제 버그를 발견해 수정했다: (1) Spring Boot 4의 Jackson 3(`tools.jackson.*`) 전환으로 `com.fasterxml.jackson.databind.ObjectMapper` 주입이 실패하던 문제, (2) `REQUIRES_NEW`가 self-invocation에서 무시되어 탈취 대응(전체 토큰 폐기)이 트랜잭션 롤백에 함께 취소되던 보안 버그(`TransactionTemplate`으로 수정). DoD 17개 전부 실측 통과.
 > **v1.17 변경**: Phase 4(Todo API + Todo 테스트)를 실제 curl·테스트·성능 측정으로 재검증 후 완료(✅) 처리했다. `HtmlSanitizer`(Jsoup Safelist), Todo DTO 4종·`PageResponse`, `TodoRepository.search()`, `TodoService`, `TodoController` 6개 엔드포인트, 시드 스크립트 2종(100건/10,000건), 통합 테스트 4건을 반영했다. 검증 중 두 가지 실제 버그를 발견해 수정했다: (1) `keyword`가 `NULL`일 때 PostgreSQL이 파라미터 타입을 추론 못해 목록 조회가 500이 나던 문제(JPQL `CAST(:keyword AS string)`로 해결), (2) PUT/toggle 응답의 `updatedAt`이 `@PreUpdate`(flush 시점) 이전 값으로 직렬화되던 문제(`flush()` 선호출로 해결). 성능 DoD는 10,000건 기준 중앙값 약 40ms로 500ms 기준을 여유 있게 통과했다. DoD 16개 전부 실측 통과.
 > **v1.18 변경**: Phase 5(구글 OAuth2)의 코드·단위 테스트를 완성했다 — `CustomOAuth2User`·`CustomOAuth2UserService`(신규가입/재조회/충돌거부/nickname 결정), `OAuth2SuccessHandler`·`OAuth2FailureHandler`, `SecurityConfig`의 `oauth2Login()` 연결, `CustomOAuth2UserServiceTest` 5건. 다만 실제 Google Cloud Console 자격증명(`GOOGLE_CLIENT_ID`/`SECRET`)이 아직 없어(사용자 확인 완료) 브라우저로 구글 로그인을 끝까지 밟아야 하는 DoD 4개는 **보류**로 명시하고, 진행 현황 표도 ✅가 아니라 🟡로 정정했다(단위 테스트만으로 로직은 검증했으나 실제 왕복은 미검증). `client-id`/`client-secret`에 `changeme` 자리표시자를 둬 자격증명 없이도 기동은 가능하게 했다. 자격증명 발급 후 사용자가 직접 로그인해 4개 DoD를 마저 체크하면 Phase 5가 ✅로 완료된다.
+> **v1.19 변경**: 「요구사항 ↔ Phase 추적표」에 v1.9의 2-토큰 설계 정정이 반영되지 않고 남아있던 2개 행을 정정했다. (1) `AUTH-04`의 "JWT 24h"를 "Access 30분/Refresh 14일"로 고쳤다(`CLAUDE.md` 6장 확정값). (2) `AUTH-06`의 구현 Phase를 "7 (프론트 전용, 서버 API 없음)"에서 "3(`/auth/logout` API) · 7(연결)"로, 검증 Phase를 "7 · 10"에서 "3 · 7 · 10"으로 고쳤다 — `/api/v1/auth/logout`은 Phase 3에서 이미 구현되어 `AuthController`에 존재하고 Phase 3 DoD("logout 후 해당 Refresh Token으로 refresh 재시도 시 401")도 실측 통과한 상태였다. **추적표를 그대로 두면 Phase 7에서 로그아웃을 클라이언트 토큰 삭제만으로 구현할 위험이 있었다**(`CLAUDE.md` 5장이 금지하는 동작). 코드 변경은 없고 문서 기록만 사실에 맞게 정정했다.
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -85,9 +86,9 @@
 | AUTH-01 회원가입                         | 3(API) · 7(화면)                                              | 3 · 7 · 10                                       |
 | AUTH-02 비밀번호 6자 이상 + 72바이트     | 3(바이트 validator) · 7(실시간 검증)                          | 3(한글 25자 → 400) · 7(제출 전 인라인 안내) · 10 |
 | AUTH-03 이메일 중복                      | 3(409) · 7(인라인 문구)                                       | 3 · 7                                            |
-| AUTH-04 로그인·JWT 24h                   | 3 · 7                                                         | 3 · 7 · 10                                       |
+| AUTH-04 로그인·Access 30분/Refresh 14일  | 3 · 7                                                         | 3 · 7 · 10                                       |
 | AUTH-05 구글 로그인                      | 5 · 7(`/oauth/callback`)                                      | 5 · 7 · 10                                       |
-| AUTH-06 로그아웃                         | 7 (프론트 전용, 서버 API 없음)                                | 7 · 10                                           |
+| AUTH-06 로그아웃                         | 3(`/auth/logout` API) · 7(연결)                               | 3 · 7 · 10                                       |
 | AUTH-07 라우트 보호                      | 7 (`(main)` 클라이언트 레이아웃)                              | 7(만료 토큰 케이스) · 10                         |
 | AUTH-08 헤더 닉네임 / 이메일 미표시      | 3(`/auth/me` 응답) · 7(헤더)                                  | 3(응답 필드) · 7(DOM에 이메일 없음) · 10         |
 | AUTH-09 계정 충돌 거부                   | 5 · 7(안내 문구)                                              | 5 · 7 · 10                                       |
