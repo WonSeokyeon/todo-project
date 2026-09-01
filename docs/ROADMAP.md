@@ -1,6 +1,6 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.19 · **최종 수정** 2026-09-01
+> **버전** 1.20 · **최종 수정** 2026-09-01
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
@@ -12,6 +12,7 @@
 > **v1.17 변경**: Phase 4(Todo API + Todo 테스트)를 실제 curl·테스트·성능 측정으로 재검증 후 완료(✅) 처리했다. `HtmlSanitizer`(Jsoup Safelist), Todo DTO 4종·`PageResponse`, `TodoRepository.search()`, `TodoService`, `TodoController` 6개 엔드포인트, 시드 스크립트 2종(100건/10,000건), 통합 테스트 4건을 반영했다. 검증 중 두 가지 실제 버그를 발견해 수정했다: (1) `keyword`가 `NULL`일 때 PostgreSQL이 파라미터 타입을 추론 못해 목록 조회가 500이 나던 문제(JPQL `CAST(:keyword AS string)`로 해결), (2) PUT/toggle 응답의 `updatedAt`이 `@PreUpdate`(flush 시점) 이전 값으로 직렬화되던 문제(`flush()` 선호출로 해결). 성능 DoD는 10,000건 기준 중앙값 약 40ms로 500ms 기준을 여유 있게 통과했다. DoD 16개 전부 실측 통과.
 > **v1.18 변경**: Phase 5(구글 OAuth2)의 코드·단위 테스트를 완성했다 — `CustomOAuth2User`·`CustomOAuth2UserService`(신규가입/재조회/충돌거부/nickname 결정), `OAuth2SuccessHandler`·`OAuth2FailureHandler`, `SecurityConfig`의 `oauth2Login()` 연결, `CustomOAuth2UserServiceTest` 5건. 다만 실제 Google Cloud Console 자격증명(`GOOGLE_CLIENT_ID`/`SECRET`)이 아직 없어(사용자 확인 완료) 브라우저로 구글 로그인을 끝까지 밟아야 하는 DoD 4개는 **보류**로 명시하고, 진행 현황 표도 ✅가 아니라 🟡로 정정했다(단위 테스트만으로 로직은 검증했으나 실제 왕복은 미검증). `client-id`/`client-secret`에 `changeme` 자리표시자를 둬 자격증명 없이도 기동은 가능하게 했다. 자격증명 발급 후 사용자가 직접 로그인해 4개 DoD를 마저 체크하면 Phase 5가 ✅로 완료된다.
 > **v1.19 변경**: 「요구사항 ↔ Phase 추적표」에 v1.9의 2-토큰 설계 정정이 반영되지 않고 남아있던 2개 행을 정정했다. (1) `AUTH-04`의 "JWT 24h"를 "Access 30분/Refresh 14일"로 고쳤다(`CLAUDE.md` 6장 확정값). (2) `AUTH-06`의 구현 Phase를 "7 (프론트 전용, 서버 API 없음)"에서 "3(`/auth/logout` API) · 7(연결)"로, 검증 Phase를 "7 · 10"에서 "3 · 7 · 10"으로 고쳤다 — `/api/v1/auth/logout`은 Phase 3에서 이미 구현되어 `AuthController`에 존재하고 Phase 3 DoD("logout 후 해당 Refresh Token으로 refresh 재시도 시 401")도 실측 통과한 상태였다. **추적표를 그대로 두면 Phase 7에서 로그아웃을 클라이언트 토큰 삭제만으로 구현할 위험이 있었다**(`CLAUDE.md` 5장이 금지하는 동작). 코드 변경은 없고 문서 기록만 사실에 맞게 정정했다.
+> **v1.20 변경**: v1.19에서 추적표만 고치고 남겨뒀던 **같은 결함의 나머지 절반**을 정정했다. (1) Phase 7 작업 목록의 `useAuth` 로그아웃이 "토큰 삭제 + 캐시 초기화"로만 적혀 있어 서버 `POST /api/v1/auth/logout` 호출이 빠져 있었다 — `CLAUDE.md` 6장이 금지하는 클라이언트 전용 로그아웃으로 구현될 위험이 그대로 남아 있었다. (2) Phase 7·10 DoD에 **로그아웃 후 `/auth/refresh` 재시도가 401인지** 확인하는 항목을 추가했다(클라이언트만 지운 구현을 걸러내는 항목). (3) Phase 7 DoD 각주의 "`JWT_EXPIRATION`을 낮춰 발급"은 **그런 환경변수가 존재하지 않아** 실행 불가였다 — 실제 값은 `JwtTokenProvider.ACCESS_TOKEN_EXPIRATION`(`Duration.ofMinutes(30)`) 코드 상수이므로 이를 명시하고 되돌리기 주의를 덧붙였다. 코드 변경은 없다.
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -407,7 +408,8 @@
 - **`/todos` 플레이스홀더 페이지 생성** — 라우트 보호를 검증하려면 대상 페이지가 존재해야 한다 (내용은 Phase 8)
 - Phase 6에서 비워둔 **헤더의 닉네임·로그아웃을 `useAuth`에 연결**
   - **이메일은 화면에 표시하지 않는다.** `/auth/me` 응답에는 들어오지만 헤더에는 닉네임만 노출한다 (`AUTH-08`)
-- `useAuth` 훅 (로그인 / **로그아웃: 토큰 삭제 + 캐시 초기화** / 현재 사용자)
+- `useAuth` 훅 (로그인 / **로그아웃: 서버 `POST /api/v1/auth/logout` 호출 + 토큰 삭제 + 캐시 초기화** / 현재 사용자)
+  - **클라이언트 토큰 삭제만으로 끝내지 않는다.** 서버 API가 Refresh Token을 DB에서 폐기하고 httpOnly 쿠키를 만료시켜야 로그아웃이 실제로 완료된다 (`CLAUDE.md` 6장). 이 API는 **Phase 3에서 이미 구현되어 있으므로 여기서는 연결만 한다**
 - **라우트 보호는 `(main)` 클라이언트 레이아웃에서 처리한다. `middleware.ts`를 만들지 않는다** (localStorage는 middleware에서 읽을 수 없음 — `CLAUDE.md` 9장)
   - **인증 판정이 끝나기 전에는 스켈레톤을 보여준다** (`UX-01`, `PRD.md` 5.1)
 - 401 응답 시 자동 로그아웃 처리
@@ -432,11 +434,12 @@
 - [ ] **`/oauth/callback` 화면에 공통 헤더와 조작 가능한 요소가 없음**
 - [ ] **헤더에 닉네임이 보이고 이메일은 어디에도 렌더되지 않음** (DevTools에서 DOM 검색 — `AUTH-08`)
 - [ ] 계정 충돌 시 안내 문구 노출
-- [ ] 로그아웃 시 토큰·캐시 모두 제거되고 `/login`으로 이동
+- [ ] **로그아웃 시 서버 `POST /api/v1/auth/logout`이 실제로 호출되고**(DevTools Network 확인), 토큰·캐시가 모두 제거되며 `/login`으로 이동
+- [ ] **로그아웃 직후 `/api/v1/auth/refresh`를 호출하면 401** — 서버의 Refresh Token 폐기가 실제로 이뤄졌는지 확인한다. 클라이언트 토큰만 지우고 끝낸 구현은 이 항목에서 걸러진다 (`AUTH-06`, `CLAUDE.md` 6장)
 - [ ] 새로고침해도 로그인 상태 유지
 - [ ] 미인증 상태로 `/todos` 접근 시 로그인으로 이동
 - [ ] **만료된 토큰을 localStorage에 직접 넣고 `/todos`에 접근했을 때, 보호 화면이 한 프레임도 노출되지 않고 곧바로 `/login`으로 이동**
-  > `useAuth`가 토큰 존재 여부만 보면 만료 토큰이 판정을 통과해, 401 왕복 동안 보호 화면이 노출된다. `exp`를 디코드해야 한다 (`CLAUDE.md` 9장). 검증용 만료 토큰은 `JWT_EXPIRATION`을 일시적으로 낮춰 발급받으면 된다
+  > `useAuth`가 토큰 존재 여부만 보면 만료 토큰이 판정을 통과해, 401 왕복 동안 보호 화면이 노출된다. `exp`를 디코드해야 한다 (`CLAUDE.md` 9장). 검증용 만료 토큰은 `JwtTokenProvider`의 `ACCESS_TOKEN_EXPIRATION`(현재 `Duration.ofMinutes(30)`)을 일시적으로 낮춰 발급받는다 — **환경변수가 아니라 코드 상수이므로** 검증 후 값을 되돌리는 것을 잊지 말 것
 - [ ] `middleware.ts` 파일이 존재하지 않음
 - [ ] `npm run build` 성공 (`useSearchParams` Suspense 경계 확인)
 - [ ] **모든 입력에 label 연결, Tab·Enter만으로 가입·로그인 완주 가능**
@@ -554,7 +557,7 @@
 - [ ] 보호된 엔드포인트에 유효 토큰 필요
 - [ ] 구글 소셜 로그인 정상 동작, nickname 채워짐
 - [ ] 동일 이메일 로컬 계정 존재 시 구글 로그인 거부 및 안내
-- [ ] 로그아웃 시 토큰·캐시 제거
+- [ ] 로그아웃 시 **서버 Refresh Token 폐기**(`/auth/refresh` 재시도 401) + 클라이언트 토큰·캐시 제거
 - [ ] 헤더에 닉네임만 표시되고 이메일은 화면 어디에도 노출되지 않음 (`AUTH-08`)
 - [ ] 만료 토큰으로 보호 화면 접근 시 화면 노출 없이 `/login`으로 이동 (`AUTH-07`)
 
