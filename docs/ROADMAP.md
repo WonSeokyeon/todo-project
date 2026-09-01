@@ -1,6 +1,6 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.22 · **최종 수정** 2026-09-01
+> **버전** 1.23 · **최종 수정** 2026-09-01
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
@@ -15,6 +15,7 @@
 > **v1.20 변경**: v1.19에서 추적표만 고치고 남겨뒀던 **같은 결함의 나머지 절반**을 정정했다. (1) Phase 7 작업 목록의 `useAuth` 로그아웃이 "토큰 삭제 + 캐시 초기화"로만 적혀 있어 서버 `POST /api/v1/auth/logout` 호출이 빠져 있었다 — `CLAUDE.md` 6장이 금지하는 클라이언트 전용 로그아웃으로 구현될 위험이 그대로 남아 있었다. (2) Phase 7·10 DoD에 **로그아웃 후 `/auth/refresh` 재시도가 401인지** 확인하는 항목을 추가했다(클라이언트만 지운 구현을 걸러내는 항목). (3) Phase 7 DoD 각주의 "`JWT_EXPIRATION`을 낮춰 발급"은 **그런 환경변수가 존재하지 않아** 실행 불가였다 — 실제 값은 `JwtTokenProvider.ACCESS_TOKEN_EXPIRATION`(`Duration.ofMinutes(30)`) 코드 상수이므로 이를 명시하고 되돌리기 주의를 덧붙였다. 코드 변경은 없다.
 > **v1.21 변경**: v1.20에서 미결로 남겨둔 **로그아웃 서버 호출 실패 시의 동작**을 확정했다(2026-09-01, 사용자 결정). 서버 호출이 실패해도 **클라이언트 정리와 `/login` 이동은 그대로 진행한다**(가용성 우선). 로그아웃을 중단하는 대안은 서버 장애 시 사용자가 로그아웃조차 못 하게 만들어 더 나쁘다고 판단했다. 남는 Refresh Token은 서버 복구 후 `/auth/refresh` 시점에 정리되거나 최대 14일 후 만료된다. Phase 7 착수 전 결정 사항이므로 코드 변경은 없다.
 > **v1.22 변경**: Phase 7(인증 화면)을 실제 구현하고 브라우저·curl로 재검증했다. `(auth)/login`·`(auth)/signup`·`oauth/callback` 3개 화면, `useAuth` 훅, `(main)` 클라이언트 라우트 보호 레이아웃, `/todos` 플레이스홀더, 루트 리다이렉트를 구현했다. DoD 18개 중 16개를 실측 통과시켰다 — 미가입 이메일/비밀번호 오류 문구 동일성, 한글 24자(경계)/25자(초과) 비밀번호 실시간 검증, 중복 이메일 인라인 에러, 네트워크 실패 시 안내(재시도는 별도 버튼 대신 기존 로그인 버튼이 겸함), 로그아웃의 서버 API 실호출과 이후 `/auth/refresh` 401(실제 폐기 확인), 만료 토큰 즉시 차단(보호 화면 미노출), 새로고침 유지, `middleware.ts` 부재, `npm run build` 성공, Tab·Enter만으로 로그인 완주를 모두 확인했다. 구글 로그인 왕복 자체(1건)와 백엔드발 계정 충돌 리다이렉트는 Phase 5의 실제 Google 자격증명이 아직 없어 보류로 남겼다 — 다만 `/oauth/callback`의 토큰 저장·URL 정리 로직 자체는 curl로 발급받은 실제 유효 토큰을 수동으로 넣어 독립 검증했고, `?error=email_conflict` 배너도 쿼리 파라미터로 직접 검증했다. 진행 현황 표를 Phase 5와 동일하게 🟡로 표시했다.
+> **v1.23 변경**: Phase 5(구글 OAuth2)를 실제 Google Cloud Console 자격증명 발급 후 브라우저로 끝까지 검증해 완료(✅) 처리했다. Google Cloud 프로젝트 생성 → OAuth 동의 화면(외부, 테스트 사용자 등록) → OAuth 클라이언트 ID 발급(리다이렉트 URI `http://localhost:8080/login/oauth2/code/google` 등록) 순서로 진행했고, `application-local.properties`에 발급받은 `client-id`/`client-secret`을 채웠다(커밋 대상 아님, `.gitignore` 확인됨). 진행 중 Console에 등록한 리다이렉트 URI 오타로 `redirect_uri_mismatch`가 한 차례 발생했으나 정정 후 해소됐다 — **리다이렉트 URI는 Spring Security가 커스텀 설정 없이 자동 생성하는 `{baseUrl}/login/oauth2/code/{registrationId}` 템플릿을 그대로 써야 하며, 트레일링 슬래시·스킴·오탈자 하나까지 정확히 일치해야 한다.** DoD 4개 중 3개(302 리다이렉트, 신규 GOOGLE 계정 저장+실명 nickname, 재로그인 시 중복 미생성)를 실제 로그인·재로그인·로그아웃 반복 후 `users`·`refresh_tokens` 테이블을 직접 조회해 확인했다 — 특히 재로그인 검증은 화면 캡처 대신 **Refresh Token 회전 이력**(로그아웃 시 `revoked_at` 기록 → 재로그인 시 새 토큰 발급, `users` 행 수는 불변)으로 간접 확인하는 방법을 썼다. 나머지 1개(동일 이메일 로컬 계정 존재 시 `email_conflict` 리다이렉트)는 재현에 별도의 구글 테스트 계정이 필요해, 이미 통과한 `CustomOAuth2UserServiceTest`의 단위 테스트 커버리지로 충분하다고 사용자와 확정하고 보류 없이 완료 처리했다.
 > 이 문서는 "어떤 순서로 만드는가"를 정의하며, **완료 판정의 정본**이다.
 > **한 번에 전체를 생성하지 않는다.** Phase 단위로 진행하고, 각 Phase의 DoD를 모두 만족한 뒤 다음으로 넘어간다.
 > 기술 규칙은 `CLAUDE.md`, 기능 정의는 `PRD.md` 참조.
@@ -30,7 +31,7 @@
 | 2     | 도메인 & DB                | backend  | ✅   |
 | 3     | 인증 (로컬) + 인증 테스트  | backend  | ✅   |
 | 4     | Todo API + Todo 테스트     | backend  | ✅   |
-| 5     | 구글 OAuth2 + OAuth 테스트 | backend  | 🟡   |
+| 5     | 구글 OAuth2 + OAuth 테스트 | backend  | ✅   |
 | 6     | 프론트 스캐폴딩            | frontend | ✅   |
 | 7     | 인증 화면                  | frontend | 🟡   |
 | 8     | Todo 화면                  | frontend | ⬜   |
@@ -335,12 +336,12 @@
 **계정 충돌 정책 (확정)**
 동일 이메일의 로컬 계정이 있으면 **거부한다.** 자동 연동하지 않고, 별도 계정도 만들지 않는다. 상세는 `CLAUDE.md` 6장.
 
-**DoD** (2026-08-31 기준 — 코드·단위 테스트는 실측 완료, 실제 구글 로그인 왕복이 필요한 항목은 자격증명 발급 후 사용자 직접 검증 필요로 명시)
+**DoD** (2026-09-01 기준 — 실제 `GOOGLE_CLIENT_ID`/`SECRET` 발급 후 사용자가 브라우저로 직접 왕복 검증 완료)
 
-- [ ] 구글 로그인 후 JWT를 담은 302 리다이렉트 발생 — ⏸ **보류.** `/oauth2/authorization/google`이 실제 구글 인가 URL로 302 리다이렉트되는 것까지는 curl로 확인했으나(`client_id=changeme`), 구글 로그인 완료 후 콜백까지 이어지는 전체 왕복은 실제 `GOOGLE_CLIENT_ID`/`SECRET` 발급 후 브라우저로 검증해야 한다.
-- [ ] 신규 사용자가 `provider=GOOGLE`, nickname이 채워진 상태로 저장됨 — ⏸ **보류(단위 테스트로 로직만 검증).** `CustomOAuth2UserServiceTest`가 `resolveUser()`로 이 로직을 직접 검증했으나, 실제 DB 저장까지 이어지는 전체 흐름은 실제 로그인 시 확인 필요.
-- [ ] 재로그인 시 중복 계정이 생기지 않음 — ⏸ **보류(단위 테스트로 로직만 검증).** `기존_GOOGLE_계정이면_그대로_조회하고_중복_생성하지_않는다` 테스트로 확인했으나, 실제 재로그인 흐름은 보류.
-- [ ] 동일 이메일 로컬 계정 존재 시 `error=email_conflict`로 302 리다이렉트 — ⏸ **보류(단위 테스트로 예외 발생만 검증).** `OAuth2FailureHandler`가 항상 `email_conflict`로 리다이렉트하는 코드는 작성·컴파일 확인했으나 실제 302 응답은 보류.
+- [x] 구글 로그인 후 JWT를 담은 302 리다이렉트 발생 — 실제 자격증명으로 브라우저 왕복 완료. 리다이렉트 성공의 간접 증거로 `refresh_tokens` 테이블에 새 행(회전 포함 2건)이 생성됨을 DB로 확인했다. 진행 중 Console에 등록한 리다이렉트 URI 오타로 `redirect_uri_mismatch`가 한 차례 났으나 정정 후 정상 동작했다.
+- [x] 신규 사용자가 `provider=GOOGLE`, nickname이 채워진 상태로 저장됨 — 실제 로그인 후 `users` 테이블에 `provider=GOOGLE`, nickname에 구글 실명이 채워진 행 생성을 DB로 직접 확인했다(이메일 앞부분 fallback이 아니라 구글 `name` 클레임이 정상 사용됨).
+- [x] 재로그인 시 중복 계정이 생기지 않음 — 로그아웃 → 같은 구글 계정으로 재로그인을 실제로 반복해, `users` 테이블 행 수가 그대로이고(신규 id 미생성) `refresh_tokens`만 새로 발급(기존 토큰은 로그아웃 시점에 `revoked_at` 기록)됨을 DB로 확인했다.
+- [x] 동일 이메일 로컬 계정 존재 시 `error=email_conflict`로 302 리다이렉트 — **단위 테스트 커버리지로 완료 처리하기로 사용자와 확정(2026-09-01).** 실제 브라우저 E2E 재현은 로컬 계정으로 먼저 등록된 이메일을 소유한 별도 구글 테스트 계정이 필요해 이번 범위에서는 준비하지 않았다. `CustomOAuth2UserServiceTest`의 충돌거부 테스트(신규가입/재조회/충돌거부/닉네임 미지정/닉네임 절삭 5건 중 1건)로 로직 자체는 이미 검증되어 있고, `OAuth2FailureHandler`가 예외를 받아 항상 `email_conflict`로 리다이렉트하는 코드도 컴파일·리뷰로 확인됨. 여분의 구글 테스트 계정이 생기면 그때 실제 왕복으로 마저 확인한다.
 - [x] **OAuth 서비스 단위 테스트 1건 통과** — `CustomOAuth2UserServiceTest` 5건(신규가입/재조회/충돌거부/닉네임 미지정/닉네임 절삭) 전부 통과, 전체 스위트 21건 회귀 없음
 
 ---
