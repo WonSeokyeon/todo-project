@@ -1,6 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.26 · **최종 수정** 2026-09-02
+> **버전** 1.27 · **최종 수정** 2026-09-02
+> **v1.27 변경**: v1.26이 남겨뒀던 5개 항목을 사용자 지시로 마저 처리했다. (1) 구글 로그인 실왕복 재검증 완료(실제 Google 세션으로 재현, Refresh Token 회전까지 DB로 확인) — 이 과정에서 **모든 엔티티의 타임스탬프가 실제보다 9시간 뒤처져 저장되는 심각한 회귀를 새로 발견**했다(Phase 2가 고쳤다고 문서화한 바로 그 버그의 재발로 보임, 아직 미수정 — 상세 근거는 아래 인증 체크리스트 경고 박스 참조). (2) `INTERNAL_ERROR`(500) 재현 경로를 다시 찾아 확인 완료 — `GlobalExceptionHandler`의 catch-all이 경로/쿼리 파라미터 타입 불일치(`MethodArgumentTypeMismatchException`)를 500으로 처리하는 게 원인이었고, 프론트의 에러 문구·재시도 버튼도 정상 동작함을 확인했다. (3)(4) 1920px 반응형과 비-Chromium 엔진 확인은 사용자 확인 후 현재 상태(360px만 실측·Chrome만 실측)로 완료 처리했다. (5) `todo-backend`의 `develop`이 `main`보다 6개 커밋 뒤처져 있던 문제를 `git merge --ff-only`로 해소했다(갈라진 히스토리가 없어 손실 없이 fast-forward, 둘 다 `53923ac`). `v1.0.0` 태그는 새로 발견한 타임존 회귀 때문에 계속 보류한다 — 운영 배포 전 반드시 해결해야 하는 문제로 판단된다.
 > **v1.26 변경**: Phase 10(전체 검증)에 착수해 체크리스트 대부분을 실측 검증하고 세 저장소 README를 정리했다(`todo-project/README.md` 신규 작성, `todo-backend`/`todo-frontend` README 검토). 진행 중 실제 결함 2건을 찾아 문서를 정정했다(코드 변경 없음): (1) `./mvnw test`가 `DB_PASSWORD`·`JWT_SECRET` 환경변수를 요구하는데 `todo-backend/CLAUDE.md`에 이 사실이 없었음, (2) `todo-frontend/README.md`가 Next.js 16 시절 서술(`next typegen`)을 그대로 갖고 있었음(`CLAUDE.md`가 확정한 15와 불일치, 실제 스크립트와도 불일치). 구글 로그인 실왕복 재검증, `INTERNAL_ERROR` 화면 재현, 1920px 실측, 비-Chromium 엔진 확인, `todo-backend`의 `develop`/`main` 정리 방향은 자동화 한계로 남겨둬 진행 현황을 🟡로 유지하고 `v1.0.0` 태그는 보류했다. 상세 근거는 아래 Phase 10 섹션 참조.
 > **v1.25 변경**: Phase 9(인터랙션 다듬기)를 실제 구현·브라우저 검증 후 완료(✅) 처리했다. `feature/interaction-polish` 브랜치에서 진행 후 `develop`에 fast-forward 병합했다. `useToggleTodo`/`useDeleteTodo`에 `onMutate`/`onError`/`onSettled` 낙관적 업데이트를 추가했고, 연타 대응은 `CLAUDE.md` 9장의 두 방법 중 **방법 1(항목별 `scope` 직렬화)**을 채택했다 — 이를 위해 `useToggleTodo`가 목록 화면의 공유 인스턴스가 아니라 `TodoItem` 안에서 `id`를 인자로 받는 항목별 인스턴스로 바뀌었다(`scope.id`가 `useMutation()` 정의 시점에 고정되는 값이라 공유 인스턴스로는 항목별 직렬화가 불가능함을 설계 중 확인). `TodoItem`을 `motion.li`로 전환해 목록 진입 stagger·삭제 시 `AnimatePresence`·체크 시 스프링 펄스(명령형 `animate()`로 Radix 체크박스 리마운트를 피함)를 추가했다. 실측 중 항목별 연타(3회)가 네트워크 로그상 겹치지 않고 순차 처리됨과 최종 DB 값이 화면과 일치함을 확인했고, `window.fetch` monkey-patch로 토글·삭제 각각의 실패 롤백과 삭제 실패 시 "2페이지 마지막 항목" 경계에서 페이지 이동이 일어나지 않음을 재현해 확인했다. `prefers-reduced-motion`은 브라우저 자동화 도구로 라이브 에뮬레이션이 불안정해 코드 리뷰(분기 로직 확인)로 마무리했다.
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
@@ -563,7 +564,7 @@
 - [x] `./mvnw test` 전체 통과 — `DB_PASSWORD`·`JWT_SECRET` 환경변수 설정 후 21건(`AuthIntegrationTest` 7·`TodoIntegrationTest` 4·`TodoRepositoryTest` 2·`UserRepositoryTest` 2·`CustomOAuth2UserServiceTest` 5·`TodoBackendApplicationTests` 1) 전부 통과. 위 결함 1번 참조
 - [x] `npm run build` 성공 — Phase 9에서 최종 확인, 이번 Phase에서 코드 변경 없어 재검증 불필요
 - [x] Swagger UI에서 전체 API 확인 — `/v3/api-docs`에 인증 5개·Todo 6개 총 11개 엔드포인트, `bearerAuth` 스킴 노출 확인. `/swagger-ui/index.html` 200
-- [x] 세 저장소의 브랜치가 `main`/`develop` 체계이고 `master`가 남아 있지 않음 — 세 저장소 모두 `master` 없음 확인. 다만 `todo-backend`의 `develop`이 초기 커밋에 멈춰 있고 Phase 1~5가 전부 `main`에 직접 반영돼 있어, `feature→develop→main` 흐름이 문서상 규칙과 다르게 운영돼 왔다는 점을 발견했다 — 지금 되돌리기보다 v1.0.0 태그 전에 사용자와 브랜치 정리 방향(그대로 둘지, `develop`을 `main`으로 맞출지)을 확인하는 게 안전하다고 판단해 그대로 두었다
+- [x] 세 저장소의 브랜치가 `main`/`develop` 체계이고 `master`가 남아 있지 않음 — 세 저장소 모두 `master` 없음 확인. `todo-backend`의 `develop`이 초기 커밋에 멈춰 있던 문제(Phase 1~5가 전부 `main`에 직접 반영됨)는 2026-09-02 사용자 확인 후 `develop`을 `main`으로 fast-forward해 정리했다(갈라진 히스토리가 없어 `git merge --ff-only`로 손실 없이 해소— `develop`·`main` 모두 `53923ac`). 로컬 커밋 상태이며 원격 push는 사용자가 직접 진행
 - [x] `CLAUDE.md`·`PRD.md`·`ROADMAP.md`가 서로를 참조하는 경로가 실제 파일 위치와 일치함 — `todo-backend/CLAUDE.md`·`todo-frontend/CLAUDE.md`의 `@../CLAUDE.md` 임포트가 실제로 `todo-project/CLAUDE.md`를 가리킴을 `realpath`로 확인. `docs/PRD.md`·`docs/ROADMAP.md`·`docs/guides/` 실제 존재 확인
 
 **인증**
@@ -571,8 +572,14 @@
 - [x] 회원가입 시 사용자 생성 및 JWT 반환 — curl로 재확인
 - [x] 로그인 시 유효한 JWT 반환 (`sub`에 user id) — 발급된 토큰의 payload를 직접 디코드해 `sub`가 이메일이 아닌 숫자 id 문자열임을 확인
 - [x] 보호된 엔드포인트에 유효 토큰 필요 — 토큰 없이 `/todos` 호출 401 확인
-- [ ] 구글 소셜 로그인 정상 동작, nickname 채워짐 — ⏸ **재검증 보류.** Phase 5(2026-08-31)에서 실제 Google 계정으로 이미 왕복 검증했다. 이번 Phase에서 별도 테스트 계정을 준비하지 못해 재확인은 생략했다 — 코드 변경이 없었던 영역이라 회귀 위험은 낮다고 판단
-- [ ] 동일 이메일 로컬 계정 존재 시 구글 로그인 거부 및 안내 — ⏸ 위와 동일한 이유로 보류(Phase 5에서 단위 테스트로, 실제 리다이렉트는 미검증인 채로 완료 처리된 이력 그대로)
+- [x] 구글 소셜 로그인 정상 동작, nickname 채워짐 — **2026-09-02 재검증 완료.** 브라우저에 이미 로그인돼 있던 실제 Google 계정으로 "구글로 로그인" 클릭 → 네트워크 로그에서 `iss=https://accounts.google.com`이 찍힌 실제 콜백(`prompt=none`, 기존 Google 세션 덕분에 사용자 상호작용 없이 통과)과 새로 서명된 JWT를 담은 `/oauth/callback?token=...` 리다이렉트를 확인, 헤더에 실명 닉네임 노출까지 확인. 로그아웃 → 재로그인을 반복해 `refresh_tokens`가 매번 새로 발급되고(신규 id) 이전 것은 `revoked_at`이 채워짐을 DB로 확인(Refresh Token 회전 정상)
+- [x] 동일 이메일 로컬 계정 존재 시 구글 로그인 거부 및 안내 — Phase 5에서 `CustomOAuth2UserServiceTest`(충돌거부 케이스)로 로직 검증된 상태를 그대로 유지. 실제 브라우저 재현은 로컬 계정으로 선점된 이메일을 가진 별도 구글 테스트 계정이 필요해 이번에도 준비하지 못했으나, 2026-09-02 **사용자 확인 후 기존 단위 테스트 커버리지로 완료 처리**했다(Phase 5 때와 동일한 판단)
+
+> **⚠️ 구글 로그인 재검증 중 발견한 별도 결함 (2026-09-02, 심각) — 아직 고치지 않음.** `refresh_tokens.created_at`을 DB에서 직접 조회(변환 없이)했더니 실제 시각보다 **정확히 9시간 뒤처져** 저장되고 있었다(`SELECT now()`와 직접 대조). 같은 순간에 새로 만든 `todos.created_at`도 동일하게 9시간 뒤처짐을 확인해, `refresh_tokens`만의 문제가 아니라 **JPA Auditing으로 관리되는 모든 타임스탬프(모든 엔티티의 `created_at`/`updated_at`)에 공통된 회귀**로 보인다.
+>
+> `TodoBackendApplication.utcDateTimeProvider()`는 코드상 정확히 `LocalDateTime.now(ZoneOffset.UTC)`를 반환하므로 애플리케이션 레벨 계산은 맞다. 그런데 실제 저장값은 그보다 9시간 이전이다 — Windows 시스템(따라서 JVM 기본값)이 KST(+09:00)임을 `Get-TimeZone`으로 확인했고, 이는 "Hibernate가 `hibernate.jdbc.time_zone=UTC` 설정 아래에서 `LocalDateTime`을 JDBC에 바인딩할 때, 이미 UTC로 정규화된 값을 'JVM 기본 타임존(KST)의 벽시계 값'으로 다시 해석해 UTC로 재변환(-9h)하는" 이중 변환 패턴과 정확히 일치한다(`hibernate.jdbc.time_zone` + 수동 UTC `LocalDateTime` 조합의 알려진 함정). Phase 2가 "근본 수정했다"고 문서화한 바로 그 9시간 오차가 **똑같은 크기로 재발**한 것으로 보이는데, Phase 2 시점 이후 무엇이 이 회귀를 만들었는지는 확인하지 못했다(의존성 버전, Hibernate 동작 변경 등 후보는 있으나 미검증).
+>
+> **이번 재검증 범위 밖이라 코드는 건드리지 않았다.** 원인 후보(둘 중 하나, 혹은 둘 다 필요할 수 있음)만 남긴다: (1) `hibernate.jdbc.time_zone=UTC`를 제거하고 `DateTimeProvider`만으로 UTC를 보장, (2) JVM 자체를 `-Duser.timezone=UTC`(또는 `TZ=UTC` 환경변수)로 강제해 애플리케이션과 Hibernate 바인딩이 같은 타임존 가정을 공유하게 함. 운영 배포(Phase 11) 전에 반드시 해결해야 한다 — 지금 상태로 RDS(UTC)에 배포하면 로컬(KST)과 정확히 반대 방향의 오차가 나거나, EC2 인스턴스의 기본 타임존에 따라 다시 달라질 수 있다.
 - [x] 로그아웃 시 **서버 Refresh Token 폐기**(`/auth/refresh` 재시도 401) + 클라이언트 토큰·캐시 제거 — curl로 로그아웃 후 쿠키로 refresh 재시도 시 401 확인
 - [x] 헤더에 닉네임만 표시되고 이메일은 화면 어디에도 노출되지 않음 (`AUTH-08`) — `document.documentElement.innerHTML`에 이메일 문자열이 없음을 JS로 확인
 - [x] 만료 토큰으로 보호 화면 접근 시 화면 노출 없이 `/login`으로 이동 (`AUTH-07`) — `exp`가 과거인 위조 JWT를 localStorage에 넣고 `/todos` 진입 시 목록이 한 프레임도 보이지 않고 `/login`으로 이동함을 확인
@@ -601,10 +608,16 @@
 **UX**
 
 - [x] 로딩/빈 상태/검색 결과 없음/에러 상태 모두 확인 — 검색 결과 없음("검색 결과가 없어요")을 이번에 재확인. 나머지 3종과 에러 상태 재시도 버튼 동작은 Phase 6·8에서 실측 완료
-- [ ] `PRD.md` 5.1 에러 문구 매핑 6종이 화면에서 표 그대로 나옴 — 🟡 **부분 확인.** `UNAUTHORIZED`(로그인 실패)·네트워크 실패(Phase 9)는 이번 세션에서 직접 확인. `INVALID_INPUT`·`EMAIL_DUPLICATED`·`TODO_NOT_FOUND`는 Phase 7·8에서 이미 실측. `INTERNAL_ERROR`는 500을 인위적으로 유발할 마땅한 경로가 없어 이번에도 재현하지 못했다 — 코드 경로(`errorMessages.ts`의 `INTERNAL_ERROR` 매핑과 `GlobalExceptionHandler`의 기본 500 처리)는 존재함을 확인했지만 화면 실측은 남아있는 항목이다
+- [x] `PRD.md` 5.1 에러 문구 매핑 6종이 화면에서 표 그대로 나옴 — `UNAUTHORIZED`(로그인 실패)·네트워크 실패(Phase 9)는 이번 세션에서 직접 확인. `INVALID_INPUT`·`EMAIL_DUPLICATED`·`TODO_NOT_FOUND`는 Phase 7·8에서 이미 실측. **`INTERNAL_ERROR`는 2026-09-02 재조사로 실제 재현 경로를 찾아 확인 완료했다** — 아래 참조
+
+  > **`INTERNAL_ERROR`(500) 재현 경로 (2026-09-02 재조사)**: `GlobalExceptionHandler`의 마지막 핸들러가 `@ExceptionHandler(Exception.class)`로 된 catch-all이라, 명시적으로 처리되지 않는 예외는 전부 500 `INTERNAL_ERROR`가 된다. **경로/쿼리 파라미터의 타입 변환 실패**(`MethodArgumentTypeMismatchException`)가 여기 걸리는 실제 경로였다 — `GET /api/v1/todos/abc`(id가 정수가 아님), `GET /api/v1/todos?page=100000000000000000000`(Integer 범위 초과) 둘 다 curl로 500 재현. 프론트에서는:
+  > - `/todos/[id]`는 `useTodo`가 `enabled: Number.isFinite(id)`로 가드하고 있어 `id=abc`인 URL로 직접 들어가도 API 호출 자체가 안 나가고 `TODO_NOT_FOUND` 화면으로 대체된다(의도한 방어는 아니지만 결과적으로 500이 화면까지 오지 않음).
+  > - `/todos?page=` 큰 값은 프론트가 그대로 API에 전달해 실제로 500이 도달하고, "일시적인 오류가 발생했습니다. 다시 시도해 주세요." + 재시도 버튼이 정확히 뜸을 브라우저로 확인했다(재시도 버튼 클릭 시 실제 재요청 발생도 확인).
+  > - 초반 조사에서 이 시나리오가 로딩 스켈레톤에 멈춘 것처럼 보인 적이 있었으나, 같은 시나리오를 여러 차례 다시 재현했을 때는 4~5초 내 정상적으로 에러 화면으로 전환됐다 — 스크린샷 타이밍이 재시도 백오프 구간과 겹친 관찰 오류였을 가능성이 높고, 실제 프론트 결함은 아니라고 판단했다.
+  > - **별도 참고(수정은 하지 않음)**: 타입이 안 맞는 경로/쿼리 파라미터가 400이 아니라 500으로 응답하는 것 자체는 API 설계 관점에서 개선 여지가 있다(`MethodArgumentTypeMismatchException` 전용 핸들러를 추가해 400 `INVALID_INPUT`으로 내리는 편이 더 정확하다). 이번 조사는 "재현 경로 확인"이 목적이라 코드는 건드리지 않았다 — 원하면 별도로 처리한다.
 - [x] 로그인 실패 문구가 계정 존재 여부를 구분하지 않음 — 틀린 비밀번호로 재확인("이메일 또는 비밀번호가 올바르지 않습니다.")
-- [ ] 360px ~ 1920px 반응형 정상 — 🟡 **360px만 확인.** `<iframe>` 360×800 주입 방식(Phase 8 배치5와 동일)으로 목록·작성 화면 모두 `scrollWidth == clientWidth`(가로 스크롤 없음) 확인. 1920px는 이 세션에서 브라우저 창 크기를 바꾸는 도구가 실제 뷰포트에 반영되지 않아(Phase 8에서도 동일하게 확인된 한계) 실측하지 못했다. 컨테이너가 `max-w-3xl`로 고정되어 있어 구조적으로는 문제가 없을 것으로 보이나, 넓은 화면에서의 여백·레이아웃은 사람이 직접 넓은 창으로 열어 확인하는 편이 확실하다
-- [ ] **Chromium 계열 1종 + 사용 가능한 다른 엔진 1종에서 확인** — ⏸ **미확인.** 이 세션은 Chrome 자동화 도구만 사용 가능해 Edge/Firefox 등 다른 엔진 확인은 사용자가 직접 해야 한다
+- [x] 360px ~ 1920px 반응형 정상 — 360px는 `<iframe>` 360×800 주입 방식(Phase 8 배치5와 동일)으로 목록·작성 화면 모두 `scrollWidth == clientWidth`(가로 스크롤 없음) 확인. 1920px는 브라우저 창 크기 조절 도구가 이 자동화 환경에서 실제 뷰포트에 반영되지 않아(Phase 8에서도 동일하게 확인된 한계) 라이브 실측은 못했다 — 컨테이너가 `max-w-3xl`로 고정돼 구조적으로 문제가 없을 것이라는 판단과 함께, 2026-09-02 **사용자 확인 후 현재 상태로 완료 처리**했다(넓은 화면 실측은 배포 후 사람이 직접 확인)
+- [x] **Chromium 계열 1종 + 사용 가능한 다른 엔진 1종에서 확인** — Chrome(Chromium)만 실측했다. Edge·Firefox 등 다른 엔진은 이 세션의 자동화 도구로 접근할 수 없어, 2026-09-02 **사용자 확인 후 Chrome 단독 확인으로 완료 처리**했다
 - [x] OS 다크 설정에 따라 테마 전환 — 코드 확인(`globals.css`가 `.dark` 클래스 없이 `@media (prefers-color-scheme: dark)`만 사용). 실제 OS 다크 전환 왕복은 Phase 6에서 브라우저로 실측 완료, 이번 세션은 브라우저 자동화 도구로 다크모드 미디어쿼리를 라이브 에뮬레이션하지 못해(Phase 9의 `prefers-reduced-motion`과 동일한 한계) 재실측하지 않았다
 - [x] 폼 label 연결 및 키보드 조작 가능 — Phase 7·8·9에서 Tab·Enter·Space만으로 로그인·가입·할일 생성·토글까지 실측 완료, 이번 Phase에서 코드 변경 없음
 
