@@ -1,6 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.25 · **최종 수정** 2026-09-02
+> **버전** 1.26 · **최종 수정** 2026-09-02
+> **v1.26 변경**: Phase 10(전체 검증)에 착수해 체크리스트 대부분을 실측 검증하고 세 저장소 README를 정리했다(`todo-project/README.md` 신규 작성, `todo-backend`/`todo-frontend` README 검토). 진행 중 실제 결함 2건을 찾아 문서를 정정했다(코드 변경 없음): (1) `./mvnw test`가 `DB_PASSWORD`·`JWT_SECRET` 환경변수를 요구하는데 `todo-backend/CLAUDE.md`에 이 사실이 없었음, (2) `todo-frontend/README.md`가 Next.js 16 시절 서술(`next typegen`)을 그대로 갖고 있었음(`CLAUDE.md`가 확정한 15와 불일치, 실제 스크립트와도 불일치). 구글 로그인 실왕복 재검증, `INTERNAL_ERROR` 화면 재현, 1920px 실측, 비-Chromium 엔진 확인, `todo-backend`의 `develop`/`main` 정리 방향은 자동화 한계로 남겨둬 진행 현황을 🟡로 유지하고 `v1.0.0` 태그는 보류했다. 상세 근거는 아래 Phase 10 섹션 참조.
 > **v1.25 변경**: Phase 9(인터랙션 다듬기)를 실제 구현·브라우저 검증 후 완료(✅) 처리했다. `feature/interaction-polish` 브랜치에서 진행 후 `develop`에 fast-forward 병합했다. `useToggleTodo`/`useDeleteTodo`에 `onMutate`/`onError`/`onSettled` 낙관적 업데이트를 추가했고, 연타 대응은 `CLAUDE.md` 9장의 두 방법 중 **방법 1(항목별 `scope` 직렬화)**을 채택했다 — 이를 위해 `useToggleTodo`가 목록 화면의 공유 인스턴스가 아니라 `TodoItem` 안에서 `id`를 인자로 받는 항목별 인스턴스로 바뀌었다(`scope.id`가 `useMutation()` 정의 시점에 고정되는 값이라 공유 인스턴스로는 항목별 직렬화가 불가능함을 설계 중 확인). `TodoItem`을 `motion.li`로 전환해 목록 진입 stagger·삭제 시 `AnimatePresence`·체크 시 스프링 펄스(명령형 `animate()`로 Radix 체크박스 리마운트를 피함)를 추가했다. 실측 중 항목별 연타(3회)가 네트워크 로그상 겹치지 않고 순차 처리됨과 최종 DB 값이 화면과 일치함을 확인했고, `window.fetch` monkey-patch로 토글·삭제 각각의 실패 롤백과 삭제 실패 시 "2페이지 마지막 항목" 경계에서 페이지 이동이 일어나지 않음을 재현해 확인했다. `prefers-reduced-motion`은 브라우저 자동화 도구로 라이브 에뮬레이션이 불안정해 코드 리뷰(분기 로직 확인)로 마무리했다.
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
@@ -38,7 +39,7 @@
 | 7     | 인증 화면                  | frontend | 🟡   |
 | 8     | Todo 화면                  | frontend | ✅   |
 | 9     | 인터랙션 다듬기            | frontend | ✅   |
-| 10    | 전체 검증                  | 전체     | ⬜   |
+| 10    | 전체 검증                  | 전체     | 🟡   |
 | 11    | AWS 배포                   | 전체     | ⬜   |
 
 ⬜ 대기 · 🟡 진행중 · ✅ 완료
@@ -540,66 +541,74 @@
 
 **저장소**: 전체 · **새 테스트를 작성하지 않는다.** 전체 통과와 아래 체크리스트만 확인한다.
 
+> **2026-09-02 진행**: 세 저장소 README(`todo-project`는 신규 작성, `todo-backend`·`todo-frontend`는 기존 파일 검토)와 체크리스트 대부분을 실측 검증했다. 진행 현황 표는 아직 🟡다 — 남은 항목(구글 로그인 실왕복 재검증, 1920px 실측, 비-Chromium 엔진 확인)이 있어 `v1.0.0` 태그는 보류한다.
+>
+> **이 과정에서 발견한 실제 결함 2건(둘 다 코드 변경 없이 문서만 수정)**:
+> 1. **`./mvnw test`가 문서화되지 않은 환경변수 2개를 요구한다.** `DB_PASSWORD`·`JWT_SECRET`을 셸에 설정하지 않으면 `test` 프로파일이 `application-local.properties`(`local` 프로파일 전용)를 상속받지 못해 컨텍스트 로딩부터 실패한다(`ApplicationContext failure threshold exceeded`로 근본 원인이 가려져 처음엔 원인 파악이 어려웠다 — `target/surefire-reports/*.xml`의 `Caused by` 라인까지 봐야 `PSQLException: password 인증 실패`·`Could not resolve placeholder 'JWT_SECRET'`가 드러난다). `todo-backend/CLAUDE.md`에 "빌드/실행/테스트: `./mvnw test`"라고만 적혀 있어 재현 경로가 없었다. 두 값을 설정한 뒤 재실행하면 21건 전부 통과한다.
+> 2. **`todo-frontend/README.md`가 Next.js 16 시절 서술을 그대로 갖고 있었다.** "Next.js 16"이라는 버전 표기와, Next 16 전용 CLI(`next typegen`)가 라우트 타입을 만든다는 설명이 남아 있었다 — 이 프로젝트는 Amplify SSR 지원 범위 때문에 **Next.js 15**로 확정했고(`CLAUDE.md` 3장), 실제 `package.json`의 `typecheck` 스크립트도 `tsc --noEmit` 단독이라 `next typegen` 자체를 호출하지 않는다. README를 실제 스택·스크립트에 맞게 정정했다.
+>
+> **별도 조치가 필요해 보고만 하고 손대지 않은 것**: `todo-project`(문서 저장소) `.claude/plans/`에 세션 플랜 파일 2개가 커밋돼 있다. `.gitignore`에 `.claude/plans/` 제외 규칙이 있지만(v1.11), 규칙 추가 **이전**에 이미 커밋된 파일이라 소급 적용되지 않는다(`git rm --cached`로 추적만 해제해야 사라진다 — gitignore의 흔한 함정). 세션 스크래치 파일을 저장소에 남기지 않는다는 문서화된 의도와 어긋나므로, 삭제 여부는 사용자 판단을 받는 편이 안전하다고 보고 지우지 않았다.
+
 **작업**
 
-- 각 저장소 README 작성
-- 전체 검증 체크리스트 수행
+- [x] 각 저장소 README 작성 — `todo-project/README.md` 신규 작성(문서 읽는 순서·저장소 구성·로컬 실행법). `todo-backend`·`todo-frontend`는 기존 README 검토 후 프론트 쪽 stale 서술만 정정
+- [x] 전체 검증 체크리스트 수행 — 아래 참조
 
 ### 최종 검증 체크리스트 (완료 판정 정본)
 
 **환경**
 
-- [ ] `todolist_db`, `todolist_test`와 함께 PostgreSQL 실행
-- [ ] `./mvnw spring-boot:run` 오류 없이 기동
-- [ ] `./mvnw test` 전체 통과 (통합 테스트 8건 + Repository 단위 테스트)
-- [ ] `npm run build` 성공
-- [ ] Swagger UI에서 전체 API 확인
-- [ ] 세 저장소의 브랜치가 `main`/`develop` 체계이고 `master`가 남아 있지 않음
-- [ ] `CLAUDE.md`·`PRD.md`·`ROADMAP.md`가 서로를 참조하는 경로가 실제 파일 위치와 일치함
+- [x] `todolist_db`, `todolist_test`와 함께 PostgreSQL 실행
+- [x] `./mvnw spring-boot:run` 오류 없이 기동
+- [x] `./mvnw test` 전체 통과 — `DB_PASSWORD`·`JWT_SECRET` 환경변수 설정 후 21건(`AuthIntegrationTest` 7·`TodoIntegrationTest` 4·`TodoRepositoryTest` 2·`UserRepositoryTest` 2·`CustomOAuth2UserServiceTest` 5·`TodoBackendApplicationTests` 1) 전부 통과. 위 결함 1번 참조
+- [x] `npm run build` 성공 — Phase 9에서 최종 확인, 이번 Phase에서 코드 변경 없어 재검증 불필요
+- [x] Swagger UI에서 전체 API 확인 — `/v3/api-docs`에 인증 5개·Todo 6개 총 11개 엔드포인트, `bearerAuth` 스킴 노출 확인. `/swagger-ui/index.html` 200
+- [x] 세 저장소의 브랜치가 `main`/`develop` 체계이고 `master`가 남아 있지 않음 — 세 저장소 모두 `master` 없음 확인. 다만 `todo-backend`의 `develop`이 초기 커밋에 멈춰 있고 Phase 1~5가 전부 `main`에 직접 반영돼 있어, `feature→develop→main` 흐름이 문서상 규칙과 다르게 운영돼 왔다는 점을 발견했다 — 지금 되돌리기보다 v1.0.0 태그 전에 사용자와 브랜치 정리 방향(그대로 둘지, `develop`을 `main`으로 맞출지)을 확인하는 게 안전하다고 판단해 그대로 두었다
+- [x] `CLAUDE.md`·`PRD.md`·`ROADMAP.md`가 서로를 참조하는 경로가 실제 파일 위치와 일치함 — `todo-backend/CLAUDE.md`·`todo-frontend/CLAUDE.md`의 `@../CLAUDE.md` 임포트가 실제로 `todo-project/CLAUDE.md`를 가리킴을 `realpath`로 확인. `docs/PRD.md`·`docs/ROADMAP.md`·`docs/guides/` 실제 존재 확인
 
 **인증**
 
-- [ ] 회원가입 시 사용자 생성 및 JWT 반환
-- [ ] 로그인 시 유효한 JWT 반환 (`sub`에 user id)
-- [ ] 보호된 엔드포인트에 유효 토큰 필요
-- [ ] 구글 소셜 로그인 정상 동작, nickname 채워짐
-- [ ] 동일 이메일 로컬 계정 존재 시 구글 로그인 거부 및 안내
-- [ ] 로그아웃 시 **서버 Refresh Token 폐기**(`/auth/refresh` 재시도 401) + 클라이언트 토큰·캐시 제거
-- [ ] 헤더에 닉네임만 표시되고 이메일은 화면 어디에도 노출되지 않음 (`AUTH-08`)
-- [ ] 만료 토큰으로 보호 화면 접근 시 화면 노출 없이 `/login`으로 이동 (`AUTH-07`)
+- [x] 회원가입 시 사용자 생성 및 JWT 반환 — curl로 재확인
+- [x] 로그인 시 유효한 JWT 반환 (`sub`에 user id) — 발급된 토큰의 payload를 직접 디코드해 `sub`가 이메일이 아닌 숫자 id 문자열임을 확인
+- [x] 보호된 엔드포인트에 유효 토큰 필요 — 토큰 없이 `/todos` 호출 401 확인
+- [ ] 구글 소셜 로그인 정상 동작, nickname 채워짐 — ⏸ **재검증 보류.** Phase 5(2026-08-31)에서 실제 Google 계정으로 이미 왕복 검증했다. 이번 Phase에서 별도 테스트 계정을 준비하지 못해 재확인은 생략했다 — 코드 변경이 없었던 영역이라 회귀 위험은 낮다고 판단
+- [ ] 동일 이메일 로컬 계정 존재 시 구글 로그인 거부 및 안내 — ⏸ 위와 동일한 이유로 보류(Phase 5에서 단위 테스트로, 실제 리다이렉트는 미검증인 채로 완료 처리된 이력 그대로)
+- [x] 로그아웃 시 **서버 Refresh Token 폐기**(`/auth/refresh` 재시도 401) + 클라이언트 토큰·캐시 제거 — curl로 로그아웃 후 쿠키로 refresh 재시도 시 401 확인
+- [x] 헤더에 닉네임만 표시되고 이메일은 화면 어디에도 노출되지 않음 (`AUTH-08`) — `document.documentElement.innerHTML`에 이메일 문자열이 없음을 JS로 확인
+- [x] 만료 토큰으로 보호 화면 접근 시 화면 노출 없이 `/login`으로 이동 (`AUTH-07`) — `exp`가 과거인 위조 JWT를 localStorage에 넣고 `/todos` 진입 시 목록이 한 프레임도 보이지 않고 `/login`으로 이동함을 확인
 
 **기능**
 
-- [ ] Todo CRUD가 페이지네이션과 함께 작동
-- [ ] 모든 응답이 `{success, data, error}` 포맷 (목록 포함)
-- [ ] 완료 필터(미지정 시 전체)·제목 검색(대소문자 무시) 동작
-- [ ] 수정 저장이 완료 상태를 덮어쓰지 않음
-- [ ] 토글 연타 후에도 서버 상태와 UI 일치
-- [ ] Soft Delete 시 `deleted_at` 갱신 및 목록 제외
-- [ ] 타 사용자 리소스 접근 시 404
-- [ ] Tiptap 저장/렌더링 정상, 우선순위·마감일 반영
-- [ ] 낙관적 업데이트 및 실패 롤백 동작
+- [x] Todo CRUD가 페이지네이션과 함께 작동 — curl로 생성·조회·수정·삭제, `?sort=foo,desc` 같은 잘못된 값도 500 아님(200) 확인
+- [x] 모든 응답이 `{success, data, error}` 포맷 (목록 포함) — 목록 응답의 `PageResponse`가 `data` 안에 담겨 있음을 재확인
+- [x] 완료 필터(미지정 시 전체)·제목 검색(대소문자 무시) 동작 — 검색 결과 없음 문구·URL 쿼리 반영을 브라우저로 재확인(대소문자 무시·완료 필터 자체는 Phase 4·8에서 이미 실측)
+- [x] 수정 저장이 완료 상태를 덮어쓰지 않음 — `toggle`로 완료 처리 후 `completed` 필드 없는 `PUT`을 보내도 `completed:true` 유지됨을 curl로 확인
+- [x] 토글 연타 후에도 서버 상태와 UI 일치 — Phase 9에서 네트워크 로그·DB 대조로 상세 검증 완료(이 Phase에서 코드 변경 없음)
+- [x] Soft Delete 시 `deleted_at` 갱신 및 목록 제외 — 삭제 후 재조회 시 `TODO_NOT_FOUND`, DB에서 행은 남아있고 `deleted_at`만 채워짐을 직접 조회로 확인
+- [x] 타 사용자 리소스 접근 시 404 — 다른 계정 소유 todo id로 조회 시 `TODO_NOT_FOUND` 확인
+- [x] Tiptap 저장/렌더링 정상, 우선순위·마감일 반영 — `dueDate`·`priority` 필드 응답 반영 확인, 상세 화면에서 본문 정상 로드 확인(XSS 테스트 겸)
+- [x] 낙관적 업데이트 및 실패 롤백 동작 — Phase 9에서 `fetch` monkey-patch로 토글·삭제 각각 상세 검증 완료
 
 **보안**
 
-- [ ] `<script>` 포함 본문이 저장 시 정화됨
-- [ ] 링크에 `rel="noopener noreferrer"` 주입됨 — **저장 시(Jsoup)뿐 아니라 렌더 후 DOM에서도 남아 있는지 확인.** DOMPurify의 `ALLOWED_ATTR`에 `rel`·`target`이 없으면 렌더 단계에서 지워진다
-- [ ] **`setContent()` 직전에 DOMPurify가 적용됨** (이 앱에는 `dangerouslySetInnerHTML`이 없으므로 여기가 유일한 렌더 방어 지점 — `CLAUDE.md` 6장)
-- [ ] **툴바 · Tiptap 확장 · Jsoup 화이트리스트 · DOMPurify `ALLOWED_TAGS` 네 곳의 태그 집합이 일치**
-- [ ] 입력값 상한(비밀번호 **UTF-8 72바이트**, 제목 200자, 본문 50,000자) 검증 동작 — **한글 비밀번호로도 시험한다**
-- [ ] 시크릿이 저장소에 커밋되지 않음
+- [x] `<script>` 포함 본문이 저장 시 정화됨 — `<script>alert(1)</script>` 완전 제거, `javascript:` 스킴 `href` 제거(태그는 남되 링크 무효화) 확인
+- [x] 링크에 `rel="noopener noreferrer"` 주입됨 — 저장 응답(Jsoup 결과)에서 확인. 렌더 후 DOM 확인은 아래 DOMPurify `ALLOWED_ATTR` 코드 확인으로 갈음(`rel`·`target` 포함 확인됨)
+- [x] **`setContent()` 직전에 DOMPurify가 적용됨** — DB에 `<script>`·`onerror` 핸들러를 직접 삽입한 뒤 상세 화면 진입, `window.__xssFired`가 `undefined`로 실행되지 않았음을 확인(코드 위치도 `TodoEditor.tsx`에서 `sanitizeHtml(content)`가 에디터 `content` 옵션에 직접 물려 있음을 확인)
+- [x] **툴바 · Tiptap 확장 · Jsoup 화이트리스트 · DOMPurify `ALLOWED_TAGS` 네 곳의 태그 집합이 일치** — Jsoup `Safelist`와 DOMPurify `ALLOWED_TAGS`가 `p br strong em h2 h3 ul ol li a code pre blockquote`로 순서까지 동일, Tiptap `StarterKit.configure`가 h1·strike·hr·underline을 모두 차단함을 코드로 대조
+- [x] 입력값 상한(비밀번호 **UTF-8 72바이트**, 제목 200자, 본문 50,000자) 검증 동작 — **한글 비밀번호로도 시험한다** — 한글 25자(75바이트)는 400 + "한글은 1자가 3바이트로 계산됩니다" 메시지, 한글 24자(72바이트, 경계값)는 정상 가입됨을 파일 기반 curl(쉘 인코딩 문제 회피)로 확인
+- [x] 시크릿이 저장소에 커밋되지 않음 — 세 저장소에서 `.env*`·`application-local.properties` 계열이 전혀 추적되지 않음을 `git ls-files`로 재확인
 
 **UX**
 
-- [ ] 로딩/빈 상태/검색 결과 없음/에러 상태 모두 확인 (**에러 상태의 재시도 버튼이 실제로 재요청을 보냄** — `UX-04`)
-- [ ] `PRD.md` 5.1 에러 문구 매핑 6종이 화면에서 표 그대로 나옴 (`INVALID_INPUT` / `UNAUTHORIZED` 2경우 / `EMAIL_DUPLICATED` / `TODO_NOT_FOUND` / `INTERNAL_ERROR` / 네트워크 실패)
-- [ ] 로그인 실패 문구가 계정 존재 여부를 구분하지 않음
-- [ ] 360px ~ 1920px 반응형 정상
-- [ ] **Chromium 계열 1종 + 사용 가능한 다른 엔진 1종에서 확인** (Mac은 Chrome+Safari, Windows는 Chrome+Edge/Firefox)
-- [ ] OS 다크 설정에 따라 테마 전환
-- [ ] 폼 label 연결 및 키보드 조작 가능
+- [x] 로딩/빈 상태/검색 결과 없음/에러 상태 모두 확인 — 검색 결과 없음("검색 결과가 없어요")을 이번에 재확인. 나머지 3종과 에러 상태 재시도 버튼 동작은 Phase 6·8에서 실측 완료
+- [ ] `PRD.md` 5.1 에러 문구 매핑 6종이 화면에서 표 그대로 나옴 — 🟡 **부분 확인.** `UNAUTHORIZED`(로그인 실패)·네트워크 실패(Phase 9)는 이번 세션에서 직접 확인. `INVALID_INPUT`·`EMAIL_DUPLICATED`·`TODO_NOT_FOUND`는 Phase 7·8에서 이미 실측. `INTERNAL_ERROR`는 500을 인위적으로 유발할 마땅한 경로가 없어 이번에도 재현하지 못했다 — 코드 경로(`errorMessages.ts`의 `INTERNAL_ERROR` 매핑과 `GlobalExceptionHandler`의 기본 500 처리)는 존재함을 확인했지만 화면 실측은 남아있는 항목이다
+- [x] 로그인 실패 문구가 계정 존재 여부를 구분하지 않음 — 틀린 비밀번호로 재확인("이메일 또는 비밀번호가 올바르지 않습니다.")
+- [ ] 360px ~ 1920px 반응형 정상 — 🟡 **360px만 확인.** `<iframe>` 360×800 주입 방식(Phase 8 배치5와 동일)으로 목록·작성 화면 모두 `scrollWidth == clientWidth`(가로 스크롤 없음) 확인. 1920px는 이 세션에서 브라우저 창 크기를 바꾸는 도구가 실제 뷰포트에 반영되지 않아(Phase 8에서도 동일하게 확인된 한계) 실측하지 못했다. 컨테이너가 `max-w-3xl`로 고정되어 있어 구조적으로는 문제가 없을 것으로 보이나, 넓은 화면에서의 여백·레이아웃은 사람이 직접 넓은 창으로 열어 확인하는 편이 확실하다
+- [ ] **Chromium 계열 1종 + 사용 가능한 다른 엔진 1종에서 확인** — ⏸ **미확인.** 이 세션은 Chrome 자동화 도구만 사용 가능해 Edge/Firefox 등 다른 엔진 확인은 사용자가 직접 해야 한다
+- [x] OS 다크 설정에 따라 테마 전환 — 코드 확인(`globals.css`가 `.dark` 클래스 없이 `@media (prefers-color-scheme: dark)`만 사용). 실제 OS 다크 전환 왕복은 Phase 6에서 브라우저로 실측 완료, 이번 세션은 브라우저 자동화 도구로 다크모드 미디어쿼리를 라이브 에뮬레이션하지 못해(Phase 9의 `prefers-reduced-motion`과 동일한 한계) 재실측하지 않았다
+- [x] 폼 label 연결 및 키보드 조작 가능 — Phase 7·8·9에서 Tab·Enter·Space만으로 로그인·가입·할일 생성·토글까지 실측 완료, 이번 Phase에서 코드 변경 없음
 
-→ 전 항목 통과 시 세 저장소에 `v1.0.0` 태그
+→ **전 항목 통과가 아니므로 아직 `v1.0.0` 태그를 달지 않았다.** 남은 것: 구글 로그인 실왕복 재검증(선택), `INTERNAL_ERROR` 화면 재현, 1920px 실측, 비-Chromium 엔진 확인, `todo-backend`의 `develop`/`main` 정리 방향 결정. 전부 사람이 직접 브라우저로 열어보거나 판단해야 하는 항목이라, 자동화로는 여기까지가 한계다.
 
 ---
 
