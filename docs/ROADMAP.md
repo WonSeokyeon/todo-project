@@ -1,6 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.28 · **최종 수정** 2026-09-02
+> **버전** 1.29 · **최종 수정** 2026-09-02
+> **v1.29 변경**: Phase 7 DoD의 마지막 미체크 항목("구글 로그인 → 콜백 → `/todos` 이동, URL에서 토큰 제거됨")을 실제 브라우저 왕복으로 검증해 완료(✅) 처리했다. Phase 5가 v1.23에서 실제 Google 자격증명으로 먼저 완료됐음에도 Phase 7 쪽 DoD는 그 시점에 재검증되지 않고 `[ ]`로 남아 있던 항목이다. 로컬 백엔드(`local` 프로파일)·프론트엔드 dev 서버를 함께 띄운 뒤 `/login`에서 "구글로 로그인" 클릭 → 이미 인증된 Chrome 세션의 기존 동의 내역 덕분에 계정 선택 화면 없이 즉시 `/oauth/callback?token=...`으로 리다이렉트 → 2초 내 `/todos`로 자동 이동하며 URL에서 `?token=` 쿼리가 완전히 사라짐을 확인했다. 추가로 `localStorage`의 키가 명세대로 `todo_access_token` 하나뿐임과, 헤더에 닉네임만 보이고 이메일이 DOM 어디에도 없음(`AUTH-08`)을 JS 실행으로 교차 확인했다. Phase 7의 DoD 18개가 전부 통과해 진행 현황 표를 ✅로 올렸다. 코드 변경 없음(검증만 수행).
 > **v1.28 변경**: v1.27이 새로 발견하고 미수정으로 남겨뒀던 타임존 회귀를 사용자 지시("지금 고쳐줘")로 같은 날 수정했다. 원인은 `application.properties`의 `spring.jpa.properties.hibernate.jdbc.time_zone=UTC` — JVM 기본 타임존이 KST인 환경에서 이 설정이 있으면 Hibernate가 이미 UTC로 계산된 `LocalDateTime` 값을 KST 벽시계로 오인해 다시 UTC로 변환(-9h)해버린다. 이 한 줄을 제거하고(`todo-backend` 커밋 `7d0385a`), 이 회귀를 계속 놓치던 `UserRepositoryTest`의 UTC 검증을 JDBC로 DB 원본 값을 재조회하는 방식으로 보강했다. `CLAUDE.md` 4장도 함께 정정(잘못된 지시를 남겨두면 재발한다). `./mvnw test` 21건 통과 + 실제 서버로 재실측(수정 후 오차 0.x초) 확인. Phase 10 체크리스트가 전 항목 통과 상태가 되어 진행 현황을 ✅로 올렸다. `v1.0.0` 태그는 사용자가 원격 push와 함께 원하는 시점에 달기로 하고 아직 보류.
 > **v1.27 변경**: v1.26이 남겨뒀던 5개 항목을 사용자 지시로 마저 처리했다. (1) 구글 로그인 실왕복 재검증 완료(실제 Google 세션으로 재현, Refresh Token 회전까지 DB로 확인) — 이 과정에서 **모든 엔티티의 타임스탬프가 실제보다 9시간 뒤처져 저장되는 심각한 회귀를 새로 발견**했다(Phase 2가 고쳤다고 문서화한 바로 그 버그의 재발로 보임, 아직 미수정 — 상세 근거는 아래 인증 체크리스트 경고 박스 참조). (2) `INTERNAL_ERROR`(500) 재현 경로를 다시 찾아 확인 완료 — `GlobalExceptionHandler`의 catch-all이 경로/쿼리 파라미터 타입 불일치(`MethodArgumentTypeMismatchException`)를 500으로 처리하는 게 원인이었고, 프론트의 에러 문구·재시도 버튼도 정상 동작함을 확인했다. (3)(4) 1920px 반응형과 비-Chromium 엔진 확인은 사용자 확인 후 현재 상태(360px만 실측·Chrome만 실측)로 완료 처리했다. (5) `todo-backend`의 `develop`이 `main`보다 6개 커밋 뒤처져 있던 문제를 `git merge --ff-only`로 해소했다(갈라진 히스토리가 없어 손실 없이 fast-forward, 둘 다 `53923ac`). `v1.0.0` 태그는 새로 발견한 타임존 회귀 때문에 계속 보류한다 — 운영 배포 전 반드시 해결해야 하는 문제로 판단된다.
 > **v1.26 변경**: Phase 10(전체 검증)에 착수해 체크리스트 대부분을 실측 검증하고 세 저장소 README를 정리했다(`todo-project/README.md` 신규 작성, `todo-backend`/`todo-frontend` README 검토). 진행 중 실제 결함 2건을 찾아 문서를 정정했다(코드 변경 없음): (1) `./mvnw test`가 `DB_PASSWORD`·`JWT_SECRET` 환경변수를 요구하는데 `todo-backend/CLAUDE.md`에 이 사실이 없었음, (2) `todo-frontend/README.md`가 Next.js 16 시절 서술(`next typegen`)을 그대로 갖고 있었음(`CLAUDE.md`가 확정한 15와 불일치, 실제 스크립트와도 불일치). 구글 로그인 실왕복 재검증, `INTERNAL_ERROR` 화면 재현, 1920px 실측, 비-Chromium 엔진 확인, `todo-backend`의 `develop`/`main` 정리 방향은 자동화 한계로 남겨둬 진행 현황을 🟡로 유지하고 `v1.0.0` 태그는 보류했다. 상세 근거는 아래 Phase 10 섹션 참조.
@@ -38,7 +39,7 @@
 | 4     | Todo API + Todo 테스트     | backend  | ✅   |
 | 5     | 구글 OAuth2 + OAuth 테스트 | backend  | ✅   |
 | 6     | 프론트 스캐폴딩            | frontend | ✅   |
-| 7     | 인증 화면                  | frontend | 🟡   |
+| 7     | 인증 화면                  | frontend | ✅   |
 | 8     | Todo 화면                  | frontend | ✅   |
 | 9     | 인터랙션 다듬기            | frontend | ✅   |
 | 10    | 전체 검증                  | 전체     | ✅   |
@@ -438,7 +439,7 @@
 - [x] **중복 이메일 가입 시 "이미 사용 중인 이메일입니다."가 이메일 입력 아래 인라인으로 뜸** (`AUTH-03`, `PRD.md` 5.1)
 - [x] **미가입 이메일과 비밀번호 오류의 화면 문구가 동일함** ("이메일 또는 비밀번호가 올바르지 않습니다.") — 계정 존재 여부가 드러나지 않음
 - [x] **백엔드를 내린 채 로그인을 시도하면 "연결에 실패했습니다." + 재시도 버튼이 나옴** (네트워크 실패 매핑 — `UX-04`) — 문구는 정상 표시. 별도 "재시도" 버튼은 추가하지 않고 **기존 "로그인" 버튼이 그 역할을 겸하도록 설계**했다(입력값이 보존된 채로 다시 클릭하면 재시도된다). 백엔드 재기동 후 같은 버튼으로 재클릭해 성공 확인
-- [ ] 구글 로그인 → 콜백 → `/todos` 이동, URL에서 토큰 제거됨 — ⏸ **보류.** 실제 Google 자격증명이 없어(Phase 5) 왕복 전체는 검증 불가. 다만 `/oauth/callback` 자체의 로직(토큰 저장 → `/todos`로 `replace` → URL에서 토큰 제거)은 curl로 발급받은 실제 유효 토큰을 콜백 URL에 수동으로 넣어 확인했다 — `href`가 `/todos`로 바뀌고 `localStorage`에 토큰이 저장됨을 확인
+- [x] 구글 로그인 → 콜백 → `/todos` 이동, URL에서 토큰 제거됨 — **2026-09-02 재검증 완료(v1.29).** 로컬 백엔드+프론트 dev 서버를 띄우고 `/login`에서 "구글로 로그인" 클릭 → 기존 Chrome Google 세션·기존 동의 내역으로 계정 선택 화면 없이 즉시 `/oauth/callback?token=...`으로 리다이렉트 → 자동으로 `/todos`로 이동하며 URL의 `?token=` 쿼리가 완전히 제거됨을 확인. `localStorage` 키가 `todo_access_token` 하나뿐이고 페이지 DOM에 이메일이 없음(닉네임만 노출)도 함께 확인
 - [x] **`/oauth/callback`에 `?token=` 없이 직접 접근하면 `/login`으로 이동함** (`PRD.md` 5.4)
 - [x] **`/oauth/callback` 화면에 공통 헤더와 조작 가능한 요소가 없음** — `Header` 컴포넌트를 아예 import하지 않고 스켈레톤만 렌더
 - [x] **헤더에 닉네임이 보이고 이메일은 어디에도 렌더되지 않음** (DevTools에서 DOM 검색 — `AUTH-08`) — 접근성 트리 전체를 덤프해 이메일 문자열이 어디에도 없음을 확인
