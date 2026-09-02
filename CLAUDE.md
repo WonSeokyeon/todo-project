@@ -279,7 +279,8 @@ private String password;
 
 로컬 개발 환경은 KST(+09:00)이고 RDS 기본 타임존은 UTC다. 아무 조치 없이 `LocalDateTime`을 쓰면 **로컬에서 만든 데이터와 운영 데이터의 시각이 9시간 어긋나고**, 배포 후에야 드러난다.
 
-- `application.properties`에 `spring.jpa.properties.hibernate.jdbc.time_zone=UTC`를 설정한다.
+- **모든 타임스탬프는 애플리케이션 코드에서 직접 UTC로 계산한다** — JPA Auditing(`created_at`/`updated_at`)은 `DateTimeProvider` 빈이 `LocalDateTime.now(ZoneOffset.UTC)`를 반환하게 하고(`@EnableJpaAuditing`과 함께 메인 애플리케이션 클래스에 둔다), 엔티티가 직접 시각을 만드는 곳(`softDelete()`, Refresh Token 발급/폐기 등)도 전부 `LocalDateTime.now(ZoneOffset.UTC)`를 명시한다.
+- **`application.properties`에 `spring.jpa.properties.hibernate.jdbc.time_zone=UTC`를 설정하지 않는다.** ⚠️ 예전에는 이 설정을 두라고 했으나 **틀렸다** — JVM 기본 타임존이 KST인 로컬 환경에서 이 값을 주면 Hibernate가 `LocalDateTime` 바인딩에도 Calendar 기반 구식 경로를 타면서, 위에서 이미 UTC로 계산해 둔 값을 "JVM 기본 타임존(KST)의 로컬 시각"으로 다시 해석해 UTC로 한 번 더 변환해버린다 — 결과적으로 실제 저장값이 **9시간 뒤로 밀린다**(2026-09-02 실측 발견 및 수정). Repository 테스트가 `saveAndFlush` 직후의 **메모리 상 엔티티 값**만 검증하고 DB에 실제로 쓰인 값을 재조회하지 않으면 이 왜곡을 못 잡으므로, UTC 저장을 검증하는 테스트는 반드시 JDBC로 컬럼 원본 값을 직접 재조회해서 대조한다(`todo-backend`의 `UserRepositoryTest` 참조).
 - 저장·비교는 전부 UTC로 한다. 표시할 때만 브라우저 로컬 시각으로 변환한다(프론트 `date-fns`).
 - `due_date`는 `LocalDate`(시각 없음)라 타임존 영향을 받지 않는다. `created_at`·`updated_at`·`deleted_at`만 해당된다.
 
