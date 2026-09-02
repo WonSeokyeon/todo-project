@@ -1,6 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.24 · **최종 수정** 2026-09-01
+> **버전** 1.25 · **최종 수정** 2026-09-02
+> **v1.25 변경**: Phase 9(인터랙션 다듬기)를 실제 구현·브라우저 검증 후 완료(✅) 처리했다. `feature/interaction-polish` 브랜치에서 진행 후 `develop`에 fast-forward 병합했다. `useToggleTodo`/`useDeleteTodo`에 `onMutate`/`onError`/`onSettled` 낙관적 업데이트를 추가했고, 연타 대응은 `CLAUDE.md` 9장의 두 방법 중 **방법 1(항목별 `scope` 직렬화)**을 채택했다 — 이를 위해 `useToggleTodo`가 목록 화면의 공유 인스턴스가 아니라 `TodoItem` 안에서 `id`를 인자로 받는 항목별 인스턴스로 바뀌었다(`scope.id`가 `useMutation()` 정의 시점에 고정되는 값이라 공유 인스턴스로는 항목별 직렬화가 불가능함을 설계 중 확인). `TodoItem`을 `motion.li`로 전환해 목록 진입 stagger·삭제 시 `AnimatePresence`·체크 시 스프링 펄스(명령형 `animate()`로 Radix 체크박스 리마운트를 피함)를 추가했다. 실측 중 항목별 연타(3회)가 네트워크 로그상 겹치지 않고 순차 처리됨과 최종 DB 값이 화면과 일치함을 확인했고, `window.fetch` monkey-patch로 토글·삭제 각각의 실패 롤백과 삭제 실패 시 "2페이지 마지막 항목" 경계에서 페이지 이동이 일어나지 않음을 재현해 확인했다. `prefers-reduced-motion`은 브라우저 자동화 도구로 라이브 에뮬레이션이 불안정해 코드 리뷰(분기 로직 확인)로 마무리했다.
 > **v1.9 변경**: 아래 "스캐폴딩 정합성 점검" 표가 실제 코드 상태와 다르게 "✅ 해소"로 잘못 기록된 항목이 다수 발견되어(Next.js 버전, `src/` 이동, `AGENTS.md`, `pom.xml`의 springdoc·jsoup, `docs/guides/` 등) 재검증 후 정정했다.
 > **v1.10 변경**: Phase 6(프론트 스캐폴딩)를 실제로 진행해 v1.9에서 ❌로 표시했던 프론트 관련 항목을 모두 해소하고 DoD 14개 전부를 브라우저로 직접 검증했다. `CLAUDE.md` 6장도 Access+Refresh 2-토큰 설계로 정정했다(4장 `refresh_tokens` 테이블, 5장 `/auth/refresh`·`/auth/logout` API, 11장 `TOKEN_EXPIRED`·`INVALID_REFRESH_TOKEN` 코드 추가 — `docs/PRD.md` 264행이 이미 이 설계를 전제하고 있었음). 백엔드(springdoc·jsoup 등)는 아직 미착수.
 > **v1.11 변경**: Phase 0(저장소 초기화)을 실제 git 명령으로 재검증 후 완료 처리했다. 세 저장소(todo-project·todo-backend·todo-frontend) 모두 `main`/`develop` 브랜치 존재, 원격(`origin`, 세 저장소 이름 통일) 연결 및 최초 push 완료, 미커밋 변경사항 커밋 완료를 확인했다. `.env`/`.env.example` gitignore 규칙은 `git check-ignore` exit code만으로 판단하지 않고 실제 `git add` 결과로 재검증했다(음수 패턴 매칭 시 check-ignore가 exit 0을 반환해도 실제로는 무시되지 않을 수 있음에 주의).
@@ -36,7 +37,7 @@
 | 6     | 프론트 스캐폴딩            | frontend | ✅   |
 | 7     | 인증 화면                  | frontend | 🟡   |
 | 8     | Todo 화면                  | frontend | ✅   |
-| 9     | 인터랙션 다듬기            | frontend | ⬜   |
+| 9     | 인터랙션 다듬기            | frontend | ✅   |
 | 10    | 전체 검증                  | 전체     | ⬜   |
 | 11    | AWS 배포                   | 전체     | ⬜   |
 
@@ -522,15 +523,16 @@
 - 실패 시 토스트 알림(`sonner`)
 - `prefers-reduced-motion` 대응
 
-**DoD**
+**DoD** (2026-09-02 실측 검증 완료)
 
-- [ ] 토글·삭제 시 대기 시간 없이 즉시 반영
-- [ ] **체크박스를 빠르게 연타해도 새로고침 후 상태가 UI와 일치**
-- [ ] **연타를 멈춘 뒤 최종 상태가 "마지막에 클릭한 값"과 일치하며, 잠시 후 반대 값으로 되돌아가지 않음**
+- [x] 토글·삭제 시 대기 시간 없이 즉시 반영 — `onMutate`로 클릭 즉시 체크박스·취소선 스타일이 바뀜을 브라우저로 확인
+- [x] **체크박스를 빠르게 연타해도 새로고침 후 상태가 UI와 일치** — 항목을 3회 연타 후 네트워크 로그로 PATCH 3건이 겹치지 않고 순차 처리됨을 확인, DB(`SELECT completed`)와 화면 값이 일치함을 확인
+- [x] **연타를 멈춘 뒤 최종 상태가 "마지막에 클릭한 값"과 일치하며, 잠시 후 반대 값으로 되돌아가지 않음** — 항목별 `scope: { id: 'todo-toggle-{id}' }` 직렬화로 요청이 클릭 순서대로 서버에 도달함을 네트워크 로그로 확인(방법 2였다면 재조회만 한 번으로 줄일 뿐 도착 순서는 보장하지 못했을 것)
   > 앞 항목만 보면 결함이 통과한다. `invalidateQueries`가 어떤 값으로든 수렴시키므로 "UI와 서버가 일치"는 항상 참이 된다. 문제는 **수렴한 값이 사용자 의도와 다를 수 있다는 것**이다
-- [ ] 서버를 내린 상태에서 실패 → UI 롤백 + 알림 확인
-- [ ] 애니메이션이 200ms 이내, 과하지 않음
-- [ ] 애니메이션 관련 import가 모두 `motion/react`에서 이루어짐
+- [x] 서버를 내린 상태에서 실패 → UI 롤백 + 알림 확인 — `window.fetch`를 monkey-patch해 `/toggle`·`DELETE`만 각각 실패시켜 재현(Phase 8 배치5와 동일한 기법). 토글은 즉시 원래 값으로 롤백 + "연결에 실패했습니다." 토스트 노출, 삭제는 항목이 사라졌다가 되돌아오고 **페이지 이동이 일어나지 않음**(2페이지 마지막 항목 케이스, 전용 테스트 계정으로 재현)을 확인
+- [x] 애니메이션이 200ms 이내, 과하지 않음 — 진입 `duration:0.2`+`stagger 30ms`, 삭제 `duration:0.15`, 체크 펄스 `duration:0.2`로 코드에 고정. 기능 테스트 중 렌더링 오류·콘솔 에러 없이 자연스럽게 표시됨을 확인
+- [x] 애니메이션 관련 import가 모두 `motion/react`에서 이루어짐 — `TodoItem.tsx`·`TodoList.tsx` 전량 확인, `framer-motion` 참조 없음
+  > `prefers-reduced-motion` 라이브 에뮬레이션은 이번 세션의 브라우저 자동화 도구로 안정적으로 재현하지 못해, `useReducedMotion()` 분기(진입 `initial=false`, exit 단순화, `layout` 비활성화, 체크 펄스 스킵)가 코드에 전부 걸려 있음을 코드 리뷰로 확인하는 선에서 마무리했다. 실제 OS 설정으로 재현해보고 싶다면 Chrome DevTools의 Rendering 탭에서 `prefers-reduced-motion: reduce`를 켜고 `/todos`를 새로고침해 확인한다.
 
 ---
 
