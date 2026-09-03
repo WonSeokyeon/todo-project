@@ -1,6 +1,7 @@
 # Todo List 프로젝트 개발 가이드
 
-> **버전** 1.11 · **최종 수정** 2026-09-01
+> **버전** 1.12 · **최종 수정** 2026-09-03
+> **v1.12 변경**: 7장 화면 목록과 6장 XSS 방어 절의 전제였던 "상세 화면은 보기/편집 모드를 나누지 않는다"(`/todos/[id]` 진입 즉시 편집)를 뒤집었다. 목록에서 항목을 선택하면 이제 읽기 전용 확인 화면(`/todos/[id]`)으로 가고, 수정은 별도 `/todos/[id]/edit`로 분리했으며 목록에도 전용 "수정" 버튼을 뒀다. **이번 건은 예외적으로 코드가 먼저 바뀌고 문서가 뒤따라간 경우다**(사용자가 실사용 중 "목록에서 누르면 곧장 수정 화면이 열린다"를 버그로 보고했고, `todo-frontend`에 이미 반영·커밋됨) — 원칙(문서 먼저, CLAUDE.md 6장)의 예외이지 새 원칙은 아니다. 읽기 전용 화면에 `dangerouslySetInnerHTML` 호출 지점이 처음 생겨 6장의 "호출 지점이 없다" 서술도 함께 정정했다. `docs/PRD.md`의 `TODO-09`·5.6절도 같은 이유로 함께 고쳤다. `docs/ROADMAP.md`의 Phase 8 완료 기록(과거 실측 로그)은 당시 사실이었으므로 소급 수정하지 않는다.
 > **v1.11 변경**: 9장 「`useAuth`는 `exp`를 봐야 한다」 절에 v1.9 이전 서술이 남아 있었다 — "`JWT_EXPIRATION`이 24시간이라 개발 중에는 만료를 만나기도 어렵다"는 근거가 두 군데 틀렸다. (1) v1.9에서 Access Token 만료를 **30분**으로 확정했으므로 24시간이 아니고, (2) `JWT_EXPIRATION`이라는 환경변수는 존재하지 않는다 — 실제 값은 `JwtTokenProvider.ACCESS_TOKEN_EXPIRATION`(`Duration.ofMinutes(30)`) 코드 상수다(`todo-backend` 실제 코드로 확인). 결론(`exp`를 디코드해야 한다)은 그대로 유효하며, 근거 문장만 사실에 맞게 고쳤다. 코드 변경은 없다.
 > **v1.10 변경**: 2장 저장소 구조도와 4장 UTC 타임존 설정 지시문에 남아있던 `application.yml` 계열 언급을 `application.properties` 계열로 정정했다. 부모 CLAUDE.md 절대규칙 9와 실제 `todo-backend`에 이미 존재하는 파일 형식이 `.properties`였음을 근거로 `.properties` 유지가 확정됐다(설정 파일 형식은 애초에 바뀐 적이 없고, 이 문서의 서술이 stale했던 것).
 > **v1.9 변경**: 6장 인증 설계를 Access(30분)+Refresh(14일, httpOnly 쿠키) 2-토큰 구조로 정정(기존 서술은 `docs/PRD.md`가 이미 전제하던 설계와 반대였음). 4장에 `refresh_tokens` 테이블, 5장에 `/auth/refresh`·`/auth/logout` API를 추가했다. 코드는 아직 없으므로 문서만 수정.
@@ -70,7 +71,9 @@ todo-project/                    # [저장소 1] 문서 저장소
         │   └── (main)/todos/
         │       ├── page.tsx          # 목록
         │       ├── new/page.tsx      # 생성
-        │       └── [id]/page.tsx     # 상세(편집)
+        │       └── [id]/
+        │           ├── page.tsx      # 확인(읽기 전용)
+        │           └── edit/page.tsx # 수정
         ├── components/
         │   ├── ui/              # shadcn/ui
         │   ├── common/          # Pagination, EmptyState, ErrorState, Skeleton
@@ -586,19 +589,22 @@ p, br, strong, em, h2, h3, ul, ol, li, a, code, pre, blockquote
 
 **렌더 시 (프론트)** — `lib/sanitize.ts`에서 DOMPurify로 한 번 더 정화한다. 서버를 신뢰하더라도 이중 방어를 유지한다.
 
-#### ⚠️ 정화의 적용 지점은 `dangerouslySetInnerHTML`이 아니다 (중요)
+#### ⚠️ 정화의 적용 지점은 두 곳이다 — 하나만 하면 이중 방어가 아니다 (중요)
 
-상세 화면을 **"진입 즉시 편집 가능, 보기 모드 없음"**(7장)으로 확정했기 때문에, **이 앱에는 `dangerouslySetInnerHTML` 호출 지점이 하나도 없다.** 본문 HTML은 오직 Tiptap 에디터로만 들어간다. "`dangerouslySetInnerHTML` 사용 전에 정화한다"고만 적으면 **적용 대상이 없어 이중 방어가 실질적으로 사라진다.**
+> **v1.12 변경**: 이전 버전은 "상세 화면이 진입 즉시 편집 가능이라 `dangerouslySetInnerHTML` 호출 지점이 아예 없다"고 단정했다. 7장이 바뀌어 `/todos/[id]`가 읽기 전용 확인 화면이 되면서 그 전제가 깨졌다 — 본문을 읽기 전용으로 그리려면 `dangerouslySetInnerHTML`이 필요하고, 여기도 정화를 거치지 않으면 이중 방어의 두 번째 축이 통째로 빠진다.
 
-따라서 적용 지점을 다음으로 고정한다.
+적용 지점을 다음 두 곳으로 고정한다.
 
 ```ts
-// 서버에서 받은 본문을 에디터에 주입하기 직전에 정화한다
+// 1. 에디터에 주입하기 직전 (편집 화면, TodoEditor.tsx)
 editor.commands.setContent(sanitizeHtml(todo.content));
+
+// 2. 읽기 전용으로 그리기 직전 (확인 화면, /todos/[id]/page.tsx)
+<div dangerouslySetInnerHTML={{ __html: sanitizeHtml(todo.content ?? "") }} />
 ```
 
-- **`editor.commands.setContent()` 호출 직전**에 `lib/sanitize.ts`를 반드시 거친다.
-- 향후 목록 미리보기 등 `dangerouslySetInnerHTML`을 쓰는 화면이 생기면 그곳도 동일하게 거친다.
+- **`editor.commands.setContent()` 호출 직전**과 **읽기 전용 확인 화면의 `dangerouslySetInnerHTML` 직전** 둘 다 `lib/sanitize.ts`를 반드시 거친다.
+- 앞으로 목록 미리보기 등 본문을 그리는 화면이 더 생기면 그곳도 동일하게 거친다.
 
 #### DOMPurify 허용 목록 (Jsoup과 동일하게 유지할 것)
 
@@ -640,12 +646,17 @@ DOMPurify.sanitize(html, {
 | `/oauth/callback` | 소셜 토큰 처리                | X    |
 | `/todos`          | 목록 (필터/검색/페이지네이션) | O    |
 | `/todos/new`      | 작성 (Tiptap)                 | O    |
-| `/todos/[id]`     | 상세 (항상 편집 가능)         | O    |
+| `/todos/[id]`     | 확인 (읽기 전용)              | O    |
+| `/todos/[id]/edit`| 수정 (Tiptap)                 | O    |
 
 - 미인증 상태로 보호된 경로 접근 시 `/login`으로 리다이렉트.
 - 인증 화면의 공통 헤더에는 **닉네임과 로그아웃 버튼**을 둔다.
 
-> **상세 화면은 보기/편집 모드를 나누지 않는다.** 진입 즉시 모든 필드가 편집 가능한 상태이며, 자동 저장 없이 "저장" 버튼을 눌러야 반영된다. `/todos/new`와 **`TodoForm` 컴포넌트를 재사용**하고, 초기값 유무와 삭제 버튼 노출로만 구분한다. 변경 사항이 있는 상태에서 이탈하려 하면 확인 대화상자를 띄운다.
+> **v1.12 변경**: 상세 화면을 확인(읽기 전용)과 수정으로 분리했다. 이전에는 목록에서 항목을 누르면 곧장 편집 폼이 열렸는데, 실사용 중 "선택만 했는데 수정 화면이 뜬다"는 혼란을 일으켜 뒤집었다.
+>
+> - **`/todos/[id]`(확인)**: 제목·우선순위·마감일·본문을 읽기 전용으로 보여준다. 본문은 Tiptap을 띄우지 않고 `dangerouslySetInnerHTML` + `sanitizeHtml`로 그린다(6장 참조). "수정"·"목록으로" 버튼만 있다.
+> - **`/todos/[id]/edit`(수정)**: 기존 "진입 즉시 편집 가능" 폼 그대로다. `/todos/new`와 **`TodoForm` 컴포넌트를 재사용**하고, 초기값 유무와 삭제 버튼 노출로만 구분한다. 변경 사항이 있는 상태에서 이탈하려 하면 확인 대화상자를 띄운다(`useLeaveGuard`). 저장 성공 시 확인 화면(`/todos/[id]`)으로, 삭제 성공 시 목록(`/todos`)으로 이동한다. "취소"도 확인 화면으로 돌아간다.
+> - **목록(`/todos`)**: 제목 링크는 확인 화면으로 가고, 항목마다 별도 연필 아이콘("수정") 버튼이 `/todos/[id]/edit`로 바로 연결된다.
 
 ---
 
@@ -743,7 +754,7 @@ import { motion, AnimatePresence, useReducedMotion } from "motion/react";
 
 인증 토큰이 localStorage에 있고 데이터를 React Query로 가져오므로, **이 프로젝트의 페이지는 사실상 전부 클라이언트 컴포넌트다.**
 
-- `/login`, `/signup`, `/oauth/callback`, `/todos`, `/todos/new`, `/todos/[id]`의 `page.tsx`에 **`"use client"`를 붙인다.**
+- `/login`, `/signup`, `/oauth/callback`, `/todos`, `/todos/new`, `/todos/[id]`, `/todos/[id]/edit`의 `page.tsx`에 **`"use client"`를 붙인다.**
 - 서버 컴포넌트에서 데이터를 미리 가져오려 시도하지 않는다. 서버에는 토큰이 없다.
 - `app/layout.tsx`(루트)만 서버 컴포넌트로 두고, Provider들은 별도 클라이언트 컴포넌트로 분리해 감싼다.
 
@@ -855,7 +866,7 @@ onSettled: () => {
 
 - **마지막 항목 삭제로 현재 페이지가 비는 경우**: `page > 0`이고 삭제 후 항목이 0개면 **이전 페이지로 이동**한다. 빈 상태 문구를 띄우지 않는다.
   > ⚠️ **페이지 이동은 `onMutate`가 아니라 `onSuccess`에서 한다.** 낙관적 제거로 화면은 즉시 비지만 URL은 그대로 둔다. `onMutate`에서 이동해 버리면 쿼리 키가 바뀌어, 삭제가 실패했을 때 `onError`의 롤백이 **사용자가 보고 있지 않은 캐시에 적용된다.** 사용자는 다른 페이지에서 토스트만 보고 무엇이 되돌아갔는지 알 수 없다 — `TODO-13`("UI를 이전 상태로 되돌린다") 위반이다.
-- **`/todos/[id]`에서 404**: 없는 id이거나 타인 소유이면 서버가 404를 준다. 프론트는 목록으로 리다이렉트하지 않고 **"할 일을 찾을 수 없습니다" 화면과 목록으로 가기 버튼**을 보여준다. Next.js `notFound()`는 쓰지 않는다(클라이언트 데이터 페칭이므로).
+- **`/todos/[id]`, `/todos/[id]/edit`에서 404**: 없는 id이거나 타인 소유이면 서버가 404를 준다. 두 라우트 모두 목록으로 리다이렉트하지 않고 **"할 일을 찾을 수 없습니다" 화면과 목록으로 가기 버튼**을 보여준다. Next.js `notFound()`는 쓰지 않는다(클라이언트 데이터 페칭이므로).
 - **검색 중 항목 삭제**: 검색 결과 캐시에서만 제거하고, `invalidateQueries`로 다른 캐시를 갱신한다.
 
 ### ⚠️ 이탈 확인 대화상자는 두 계층으로 나눠 구현한다 (중요)
