@@ -18,6 +18,10 @@ node_modules/
 # 작업 도구 데이터
 shrimp_data/
 
+# 첨부 파일 로컬 스토리지 (CLAUDE.md 4장 attachments)
+# todo-backend 가 ../upload 로 접근하는 실제 업로드 디렉토리. 어느 저장소에도 커밋하지 않는다
+upload/
+
 # Claude Code 로컬 설정 (개인 설정이므로 공유하지 않음)
 .claude/settings.local.json
 .claude/plans/

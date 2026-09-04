@@ -1,6 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.29 · **최종 수정** 2026-09-02
+> **버전** 1.30 · **최종 수정** 2026-09-04
+> **v1.30 변경**: **Phase 12(이미지 첨부, 로컬 스토리지)와 Phase 13(S3 전환)을 신설**했다. `PRD.md` v1.11이 이미지 첨부를 MVP 범위로 편입(`TODO-17`·`TODO-18`)하고 `CLAUDE.md` v1.13이 스키마·API·정화 규칙을 확정한 데 따른 것이다. **번호와 실행 순서가 다르다** — 실행은 `12 → 11 → 13`이며, Phase 12는 로컬 디렉토리만 쓰므로 AWS 없이 지금 착수할 수 있고 Phase 13은 버킷·IAM이 필요해 Phase 11 완료가 선행 조건이다. 상세 지시서는 `docs/tiptap-image-upload-prompt.md`, 원본 프롬프트의 실측 검증 근거는 `docs/appendFileImage.md`. 함께 발견한 사실 하나를 기록해 둔다 — **이 문서와 `CLAUDE.md`가 파일 자체로 잘려 있다**(각각 Phase 11-3, 11장 중간). `(NKB 남음)` 마커가 최초 커밋부터 저장돼 있어 git 복구가 불가능하며, 유실이 아니라 처음부터 작성되지 않은 것이다. Phase 11 착수 전 재작성이 필요하다.
 > **v1.29 변경**: Phase 7 DoD의 마지막 미체크 항목("구글 로그인 → 콜백 → `/todos` 이동, URL에서 토큰 제거됨")을 실제 브라우저 왕복으로 검증해 완료(✅) 처리했다. Phase 5가 v1.23에서 실제 Google 자격증명으로 먼저 완료됐음에도 Phase 7 쪽 DoD는 그 시점에 재검증되지 않고 `[ ]`로 남아 있던 항목이다. 로컬 백엔드(`local` 프로파일)·프론트엔드 dev 서버를 함께 띄운 뒤 `/login`에서 "구글로 로그인" 클릭 → 이미 인증된 Chrome 세션의 기존 동의 내역 덕분에 계정 선택 화면 없이 즉시 `/oauth/callback?token=...`으로 리다이렉트 → 2초 내 `/todos`로 자동 이동하며 URL에서 `?token=` 쿼리가 완전히 사라짐을 확인했다. 추가로 `localStorage`의 키가 명세대로 `todo_access_token` 하나뿐임과, 헤더에 닉네임만 보이고 이메일이 DOM 어디에도 없음(`AUTH-08`)을 JS 실행으로 교차 확인했다. Phase 7의 DoD 18개가 전부 통과해 진행 현황 표를 ✅로 올렸다. 코드 변경 없음(검증만 수행).
 > **v1.28 변경**: v1.27이 새로 발견하고 미수정으로 남겨뒀던 타임존 회귀를 사용자 지시("지금 고쳐줘")로 같은 날 수정했다. 원인은 `application.properties`의 `spring.jpa.properties.hibernate.jdbc.time_zone=UTC` — JVM 기본 타임존이 KST인 환경에서 이 설정이 있으면 Hibernate가 이미 UTC로 계산된 `LocalDateTime` 값을 KST 벽시계로 오인해 다시 UTC로 변환(-9h)해버린다. 이 한 줄을 제거하고(`todo-backend` 커밋 `7d0385a`), 이 회귀를 계속 놓치던 `UserRepositoryTest`의 UTC 검증을 JDBC로 DB 원본 값을 재조회하는 방식으로 보강했다. `CLAUDE.md` 4장도 함께 정정(잘못된 지시를 남겨두면 재발한다). `./mvnw test` 21건 통과 + 실제 서버로 재실측(수정 후 오차 0.x초) 확인. Phase 10 체크리스트가 전 항목 통과 상태가 되어 진행 현황을 ✅로 올렸다. `v1.0.0` 태그는 사용자가 원격 push와 함께 원하는 시점에 달기로 하고 아직 보류.
 > **v1.27 변경**: v1.26이 남겨뒀던 5개 항목을 사용자 지시로 마저 처리했다. (1) 구글 로그인 실왕복 재검증 완료(실제 Google 세션으로 재현, Refresh Token 회전까지 DB로 확인) — 이 과정에서 **모든 엔티티의 타임스탬프가 실제보다 9시간 뒤처져 저장되는 심각한 회귀를 새로 발견**했다(Phase 2가 고쳤다고 문서화한 바로 그 버그의 재발로 보임, 아직 미수정 — 상세 근거는 아래 인증 체크리스트 경고 박스 참조). (2) `INTERNAL_ERROR`(500) 재현 경로를 다시 찾아 확인 완료 — `GlobalExceptionHandler`의 catch-all이 경로/쿼리 파라미터 타입 불일치(`MethodArgumentTypeMismatchException`)를 500으로 처리하는 게 원인이었고, 프론트의 에러 문구·재시도 버튼도 정상 동작함을 확인했다. (3)(4) 1920px 반응형과 비-Chromium 엔진 확인은 사용자 확인 후 현재 상태(360px만 실측·Chrome만 실측)로 완료 처리했다. (5) `todo-backend`의 `develop`이 `main`보다 6개 커밋 뒤처져 있던 문제를 `git merge --ff-only`로 해소했다(갈라진 히스토리가 없어 손실 없이 fast-forward, 둘 다 `53923ac`). `v1.0.0` 태그는 새로 발견한 타임존 회귀 때문에 계속 보류한다 — 운영 배포 전 반드시 해결해야 하는 문제로 판단된다.
@@ -44,8 +45,22 @@
 | 9     | 인터랙션 다듬기            | frontend | ✅   |
 | 10    | 전체 검증                  | 전체     | ✅   |
 | 11    | AWS 배포                   | 전체     | ⬜   |
+| 12    | 이미지 첨부 (로컬 스토리지) | 전체     | ⬜   |
+| 13    | S3 전환                    | backend  | ⬜   |
 
 ⬜ 대기 · 🟡 진행중 · ✅ 완료
+
+> ### ⚠️ Phase 번호와 실행 순서가 다르다 (v1.30 추가)
+>
+> **실행 순서는 `12 → 11 → 13`이다.** 번호는 추가된 시점의 식별자일 뿐 순서가 아니다.
+>
+> | Phase | 선행 조건 | 이유 |
+> | --- | --- | --- |
+> | 12 (이미지 첨부) | Phase 10 완료 | 로컬 스토리지만 쓰므로 AWS가 필요 없다. **지금 바로 착수 가능** |
+> | 11 (AWS 배포) | Phase 12 완료 | 첨부 기능까지 포함해 배포해야 두 번 배포하지 않는다 |
+> | 13 (S3 전환) | **Phase 11 완료** | 버킷·IAM이 존재해야 한다 |
+>
+> Phase 10을 이미 통과했으므로 기존 `v1.0.0` 태그 기준은 그대로 두고, Phase 12·13 완료 시 각각 `v1.1.0`·`v1.2.0`을 붙인다.
 
 > ### 스캐폴딩 정합성 점검 (2026-08-28, v1.9 재검증)
 >
@@ -665,3 +680,115 @@
 ### 11-3. HTTPS (방식 확정: nginx + certbot)
 
 개인 프로젝트 규모이므로 **EC2 한 대에 nginx 리버스 프록시 + Let's Encrypt**로 간다. ALB + ACM은 관리가 편하지만 상시 비용... (12KB 남음)
+
+> ⚠️ **위 문장은 파일이 잘려 있다.** `(12KB 남음)`은 컨텍스트 truncation 마커가 파일에 그대로 저장된 것으로, **최초 커밋부터 이 상태**라 git에서 복구할 온전한 버전이 없다. Phase 11-3 이후 내용(11-4 프론트 배포, 11-5 검증 등)이 유실된 것이 아니라 **애초에 작성되지 않았다.** Phase 11 착수 전에 이 부분을 새로 작성해야 한다. 같은 문제가 `CLAUDE.md` 11장에도 있다.
+
+---
+
+## Phase 12 — 이미지 첨부 (로컬 스토리지)
+
+**저장소**: 전체 · **선행**: Phase 10 완료 · **대응 요구사항**: `PRD.md` `TODO-17`·`TODO-18`
+
+> 상세 작업 지시서는 **`docs/tiptap-image-upload-prompt.md`**가 정본이다. 원본 프롬프트를 실측 검증한 분석 근거는 `docs/appendFileImage.md`에 있다.
+> **S3는 이 Phase에 포함되지 않는다.** 저장소는 `todo-project/upload/` 로컬 디렉토리다.
+
+### 12-0. 문서 선행 (완료)
+
+- [x] `PRD.md` v1.11 — 비목표에서 이미지 업로드 제거, `TODO-17`·`TODO-18` 신설
+- [x] `CLAUDE.md` v1.13 — 3·4·5·6·8·11장 반영
+- [x] `ROADMAP.md` v1.29 — Phase 12·13 신설
+- [x] 루트 `.gitignore`에 `upload/` 추가
+
+### 12-1. 백엔드 — 스키마와 정화
+
+- `attachments` 엔티티·리포지토리 (`CLAUDE.md` 4장). **마이그레이션 파일을 만들지 않는다** — `ddl-auto=update`
+- `ErrorCode`에 `ATTACHMENT_NOT_FOUND`(404)·`ATTACHMENT_INVALID_STATE`(409) 추가
+- **`HtmlSanitizer`에 `img` 허용** — `data-attachment-id`·`alt`만, **`src`는 허용하지 않는다**
+- `HtmlSanitizer`에 본문의 첨부 ID 수집 메서드 추가
+
+**완료 조건**: `HtmlSanitizerTest`가 ① `img`가 살아남고 ② `src`가 제거되며 ③ `data-attachment-id`가 보존되는 것을 검증하고 통과한다.
+
+### 12-2. 백엔드 — 스토리지와 API
+
+- `StorageService` 인터페이스 + `LocalStorageService` (`@ConditionalOnProperty`)
+- `JwtTokenProvider`에 첨부 서명 토큰 메서드 (업로드 10분 / 조회 30분, `typ` 검증 필수)
+- `SecurityConfig` permitAll에 `/api/v1/attachments/*/upload`·`/api/v1/attachments/*/raw` 추가
+- `AttachmentService` · `AttachmentController` (6개 엔드포인트)
+- **경로 탈출 방어** — `normalize()` 후 base 하위 확인
+- **크기 이중 검사** — `Content-Length` 선검사 + 스트림 누적 검사
+
+**완료 조건**: `AttachmentIntegrationTest`가 presign → upload → complete 전 흐름, 타인 접근 404, `../` 차단을 검증하고 통과한다.
+
+### 12-3. 백엔드 — 연결 처리와 배치
+
+- `TodoService.create()`/`update()`에 첨부 연결 로직 (`LINKED` 전환, 사라진 첨부 soft delete)
+- `TodoBackendApplication`에 `@EnableScheduling`
+- `AttachmentCleanupScheduler` — TEMP 24시간 / `deleted_at` 30일
+
+**완료 조건**: 할 일 저장 후 `status=LINKED`·`todo_id`가 채워지고, 본문에서 이미지를 지우면 `deleted_at`이 채워지되 **파일은 남아 있다.**
+
+### 12-4. 프론트엔드 — 정화와 헬퍼
+
+- `src/lib/sanitize.ts` — `img` + `data-attachment-id`·`alt` 허용, `ALLOW_DATA_ATTR: false`
+- `src/lib/attachmentHtml.ts` — `collectAttachmentIds()`, `injectAttachmentSrc()`
+- `src/types/attachment.ts`, `src/types/api.ts`·`src/lib/errorMessages.ts`에 신규 에러 코드 동기화
+
+**완료 조건**: `npm run validate` 통과.
+
+### 12-5. 프론트엔드 — 에디터와 화면
+
+- `@tiptap/extension-image` 설치 (**유일하게 승인된 추가 라이브러리**)
+- `src/lib/tiptapExtensions.ts`에 `AttachmentImage` 노드 (`allowBase64: false`)
+- 툴바 이미지 버튼 + `handlePaste` + `handleDrop`
+- `src/hooks/useAttachments.ts` — **`uploadFile`만 `apiClient` 우회**(헤더 없는 순수 `fetch`, 주석 필수)
+- `/todos/[id]` 확인 화면과 `/todos/[id]/edit` 수정 화면의 URL 주입
+- **URL 해석이 끝난 뒤에 `TodoForm`을 마운트** (dirty 판정 오염 방지)
+
+**완료 조건**: `npm run validate` 통과 + 아래 12-6 전 항목 통과.
+
+### 12-6. 검증 체크리스트
+
+- [ ] 서버 기동 시 `todo-project/upload` 자동 생성
+- [ ] `upload/todos/{userId}/{yyyy}/{MM}/{uuid}.{ext}`에 파일 생성
+- [ ] `attachments`에 `status=TEMP` 행 생성
+- [ ] 할 일 저장 후 `status=LINKED` + `todo_id` 채워짐
+- [ ] **저장된 HTML에 `src`가 없고 `data-attachment-id`만 있음 (DB 직접 확인)**
+- [ ] 확인 화면·수정 화면 양쪽에서 이미지 정상 표시
+- [ ] 본문에서 이미지 삭제 후 저장 → `deleted_at` 채워지고 **파일은 잔존**
+- [ ] 5MB 초과·`.exe` 업로드 거부
+- [ ] 타인 `attachmentId` 조회 시 **404** (403 아님)
+- [ ] `storageKey`에 `../` 주입 차단
+- [ ] **아무것도 고치지 않고 수정 화면을 나갈 때 이탈 확인창이 뜨지 않음**
+- [ ] `upload/`가 `git status`에 잡히지 않음
+
+**태그**: 통과 시 세 저장소에 `v1.1.0`
+
+---
+
+## Phase 13 — S3 전환
+
+**저장소**: backend · **선행**: **Phase 11 완료** (버킷·IAM이 존재해야 한다)
+
+> 계약은 Phase 12에서 이미 확정했다. 이 Phase는 **구현체 교체와 설정만** 다룬다.
+
+### 13-1. 구현
+
+- AWS SDK v2 (`software.amazon.awssdk:s3`) 의존성 추가 — **BOM으로 버전 관리**
+- `S3StorageService` (`@ConditionalOnProperty havingValue="s3"`)
+- `config/S3Config` — `S3Client`·`S3Presigner` 빈
+- `application-prod.properties`에 `app.storage.type=s3`, 버킷·리전
+
+### 13-2. AWS 콘솔 설정
+
+- 버킷 **CORS** — presigned PUT을 위해 `PUT`·`GET`·`HEAD` 허용, `AllowedOrigin`에 Amplify 도메인
+- **퍼블릭 액세스 차단은 켠 상태 유지**
+- IAM 정책은 해당 버킷의 `s3:PutObject`·`s3:GetObject`·`s3:DeleteObject`만 (최소 권한)
+- 자격증명은 **EC2 IAM Role**로 주입한다. 키를 파일에 넣지 않는다
+
+### 13-3. 검증
+
+- [ ] 운영 프로파일로 기동해 Phase 12-6 시나리오 전체 재확인
+- [ ] **프론트엔드 코드 변경이 0줄인가** — 수정이 필요하면 추상화가 잘못된 것이므로 **구현을 멈추고 보고**한다
+- [ ] 버킷이 퍼블릭으로 열려 있지 않은가
+
+**태그**: 통과 시 `v1.2.0`

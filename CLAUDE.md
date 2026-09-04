@@ -1,6 +1,7 @@
 # Todo List 프로젝트 개발 가이드
 
-> **버전** 1.12 · **최종 수정** 2026-09-03
+> **버전** 1.13 · **최종 수정** 2026-09-04
+> **v1.13 변경**: **본문 이미지 첨부를 MVP 범위로 편입**했다(`PRD.md` v1.11의 `TODO-17`·`TODO-18`). 3장의 "S3는 MVP 범위에서 제외한다"를 정정하고, 4장에 `attachments` 테이블, 5장에 첨부 API 6종, 6장 XSS 절에 `img` 허용 규칙, 8장 툴바에 이미지 버튼, 11장에 `ATTACHMENT_*` 에러 코드를 추가했다. **저장소는 이번엔 로컬 디렉토리이고 S3 전환은 Phase 13**(AWS 배포 이후)이다 — 인터페이스만 지금 확정한다. 이번 건은 원칙대로 **문서를 먼저 고치고 구현에 들어간다**(6장). 상세 지시서는 `docs/tiptap-image-upload-prompt.md`, 원본 프롬프트 분석 근거는 `docs/appendFileImage.md`.
 > **v1.12 변경**: 7장 화면 목록과 6장 XSS 방어 절의 전제였던 "상세 화면은 보기/편집 모드를 나누지 않는다"(`/todos/[id]` 진입 즉시 편집)를 뒤집었다. 목록에서 항목을 선택하면 이제 읽기 전용 확인 화면(`/todos/[id]`)으로 가고, 수정은 별도 `/todos/[id]/edit`로 분리했으며 목록에도 전용 "수정" 버튼을 뒀다. **이번 건은 예외적으로 코드가 먼저 바뀌고 문서가 뒤따라간 경우다**(사용자가 실사용 중 "목록에서 누르면 곧장 수정 화면이 열린다"를 버그로 보고했고, `todo-frontend`에 이미 반영·커밋됨) — 원칙(문서 먼저, CLAUDE.md 6장)의 예외이지 새 원칙은 아니다. 읽기 전용 화면에 `dangerouslySetInnerHTML` 호출 지점이 처음 생겨 6장의 "호출 지점이 없다" 서술도 함께 정정했다. `docs/PRD.md`의 `TODO-09`·5.6절도 같은 이유로 함께 고쳤다. `docs/ROADMAP.md`의 Phase 8 완료 기록(과거 실측 로그)은 당시 사실이었으므로 소급 수정하지 않는다.
 > **v1.11 변경**: 9장 「`useAuth`는 `exp`를 봐야 한다」 절에 v1.9 이전 서술이 남아 있었다 — "`JWT_EXPIRATION`이 24시간이라 개발 중에는 만료를 만나기도 어렵다"는 근거가 두 군데 틀렸다. (1) v1.9에서 Access Token 만료를 **30분**으로 확정했으므로 24시간이 아니고, (2) `JWT_EXPIRATION`이라는 환경변수는 존재하지 않는다 — 실제 값은 `JwtTokenProvider.ACCESS_TOKEN_EXPIRATION`(`Duration.ofMinutes(30)`) 코드 상수다(`todo-backend` 실제 코드로 확인). 결론(`exp`를 디코드해야 한다)은 그대로 유효하며, 근거 문장만 사실에 맞게 고쳤다. 코드 변경은 없다.
 > **v1.10 변경**: 2장 저장소 구조도와 4장 UTC 타임존 설정 지시문에 남아있던 `application.yml` 계열 언급을 `application.properties` 계열로 정정했다. 부모 CLAUDE.md 절대규칙 9와 실제 `todo-backend`에 이미 존재하는 파일 형식이 `.properties`였음을 근거로 `.properties` 유지가 확정됐다(설정 파일 형식은 애초에 바뀐 적이 없고, 이 문서의 서술이 stale했던 것).
@@ -147,7 +148,7 @@ Claude Code는 현재 디렉토리에서 **상위 디렉토리로 거슬러 올�
 | 서버 상태  | React Query (TanStack Query v5)                                      |
 | 폼         | **라이브러리를 쓰지 않는다** — `useState` + 수동 검증 (아래 ⚠️ 참조) |
 | 애니메이션 | **Motion** (`motion` 패키지, 구 framer-motion)                       |
-| 에디터     | Tiptap                                                               |
+| 에디터     | Tiptap (`@tiptap/react` + `@tiptap/starter-kit` + **`@tiptap/extension-image`**) |
 | 토스트     | **shadcn/ui `sonner`**                                               |
 | 날짜       | **date-fns** (shadcn Calendar 의존)                                  |
 | HTML 정화  | **DOMPurify**                                                        |
@@ -156,7 +157,9 @@ Claude Code는 현재 디렉토리에서 **상위 디렉토리로 거슬러 올�
 
 AWS Amplify(프론트), EC2(백엔드), RDS(PostgreSQL) · Git/GitHub
 
-> **S3는 MVP 범위에서 제외한다.** 파일 첨부가 비목표이므로 사용처가 없다. 프론트 정적 자산은 Amplify가 처리한다.
+> **S3는 Phase 13까지 사용하지 않는다.** (v1.13 정정 — 이전에는 "MVP 범위에서 제외"였다)
+> 본문 이미지 첨부가 범위에 들어오면서 파일 저장소가 필요해졌으나, **이번 구현의 저장소는 로컬 디렉토리(`todo-project/upload/`)**다. Phase 11(AWS 배포)이 끝난 뒤 Phase 13에서 S3로 전환한다.
+> 백엔드는 `StorageService` 인터페이스에만 의존하고 구현체는 `app.storage.type`으로 갈아끼운다. **프론트엔드 코드는 로컬·S3에서 동일해야 한다.** 프론트 정적 자산은 그대로 Amplify가 처리한다.
 
 ### ⚠️ 버전 관련 확정 사항
 
@@ -239,6 +242,35 @@ DB 스키마명: **`todolist_db`** (소문자) · 테스트: **`todolist_test`**
 
 - 평문 Refresh Token은 DB에 저장하지 않는다. 발급 시 SHA-256 해시만 저장하고, 검증 시 들어온 토큰을 해시해 비교한다.
 - 사용(회전) 시 기존 행을 `revoked_at` 채워 폐기하고 새 행을 만든다. 물리 삭제하지 않는다(탈취 감사 로그로 남긴다).
+
+### attachments
+
+> **v1.13 추가.** 본문 이미지 첨부(`PRD.md` `TODO-17`)를 위해 신설했다.
+
+| 컬럼                | 타입         | 제약                                        |
+| ------------------- | ------------ | ------------------------------------------- |
+| id                  | BIGSERIAL    | PK                                          |
+| user_id             | BIGINT       | FK → users.id, NOT NULL (업로더)            |
+| todo_id             | BIGINT       | FK → todos.id, **NULL 허용**                |
+| storage_type        | VARCHAR(20)  | NOT NULL, LOCAL / S3                        |
+| storage_key         | VARCHAR(512) | NOT NULL, UNIQUE                            |
+| original_filename   | VARCHAR(255) | NOT NULL                                    |
+| content_type        | VARCHAR(100) | NOT NULL                                    |
+| file_size           | BIGINT       | NOT NULL (확정 시 실측값으로 갱신)          |
+| status              | VARCHAR(20)  | NOT NULL, TEMP / LINKED                     |
+| created_at          | TIMESTAMP    | NOT NULL                                    |
+| updated_at          | TIMESTAMP    | NOT NULL                                    |
+| deleted_at          | TIMESTAMP    | NULL (Soft Delete)                          |
+
+**인덱스**: `idx_attachments_todo` on `(todo_id)`, `idx_attachments_status_created` on `(status, created_at)`, `idx_attachments_user` on `(user_id)`
+
+**저장 키 규칙**: `todos/{userId}/{yyyy}/{MM}/{uuid}.{ext}` (로컬·S3 동일)
+
+- **`todo_id`가 NULL 허용인 이유**: 에디터에서는 할 일을 저장하기 *전에* 이미지가 먼저 업로드된다. 업로드 시점에는 `status=TEMP`, `todo_id=NULL`이고, 할 일 저장 시 본문에 실제로 남아 있는 첨부만 `LINKED`로 전환하며 `todo_id`를 채운다.
+- **`storage_type`은 기록용이며 런타임 분기를 하지 않는다.** `@ConditionalOnProperty`가 구현체를 하나만 등록하므로 다른 타입 행을 처리할 빈이 애초에 없다. 감사·향후 마이그레이션 기록 용도이며, 현재 활성 타입과 다른 행에 접근하면 조용히 실패하지 말고 **명시적 예외**를 던진다.
+- **본문에서 사라진 첨부는 `deleted_at`만 채우고 파일은 즉시 지우지 않는다.** 즉시 지우면 향후 휴지통(`PRD.md` 9장 #3) 복원이 구조적으로 불가능해진다. 물리 파일 삭제는 배치가 유예 기간 뒤에 수행한다.
+  - `status=TEMP` + 생성 후 24시간 경과 → 파일·행 삭제 (업로드하다 만 고아 파일)
+  - `deleted_at` 30일 경과 → **파일만 삭제, 행은 유지**
 
 ### 입력값 제약 (DTO 검증과 스키마를 일치시킬 것)
 
@@ -417,6 +449,52 @@ Spring의 `Page` 객체를 그대로 반환하지 않고 `PageResponse<T>` DTO�
 
 토큰은 유효한데 해당 사용자가 조회되지 않는 경우(토큰 발급 후 계정이 사라진 상황)는 **404가 아니라 401 `UNAUTHORIZED`**로 응답한다. 프론트는 401을 자동 로그아웃으로 처리하므로 일관된다.
 
+### 첨부 (Attachment)
+
+> **v1.13 추가.** 본문 이미지 첨부(`TODO-17`·`TODO-18`).
+
+| Method | Endpoint                                | 인증           | 설명                        |
+| ------ | --------------------------------------- | -------------- | --------------------------- |
+| POST   | `/api/v1/attachments/presign`           | Bearer         | 업로드 URL 발급 + TEMP 행 생성 |
+| PUT    | `/api/v1/attachments/{id}/upload?token=` | **서명 토큰**  | 파일 수신 (로컬 전용)        |
+| POST   | `/api/v1/attachments/{id}/complete`     | Bearer         | 업로드 확정 (존재·크기·매직바이트 검증) |
+| GET    | `/api/v1/attachments/urls?ids=1,2,3`    | Bearer         | 조회 URL **일괄** 발급       |
+| GET    | `/api/v1/attachments/{id}/raw?token=`   | **서명 토큰**  | 파일 스트림 (로컬 전용)      |
+| DELETE | `/api/v1/attachments/{id}`              | Bearer         | Soft Delete                 |
+
+#### ⚠️ 업로드·조회 URL은 헤더가 아니라 서명 토큰으로 인증한다 (중요)
+
+"프론트 코드가 로컬·S3에서 동일하다"는 목표는 **인증 방식을 통일해야만 성립한다.**
+
+로컬 업로드 엔드포인트에 `Authorization` 헤더를 요구하면, Phase 13에서 S3 presigned PUT으로 바꾸는 순간 **헤더 때문에 서명이 깨져 403**이 난다. 그래서 로컬도 헤더가 아니라 **URL 쿼리의 단기 서명 토큰**으로 인증한다. `<img>` 태그가 헤더를 실을 수 없어 조회 URL에 토큰이 필요한 것과 같은 논리다.
+
+- 프론트는 두 경우 모두 **`Authorization` 없이 `credentials: "omit"`으로** 순수 `fetch` PUT을 보낸다.
+- 서명 토큰은 `JwtTokenProvider`에 메서드를 추가해 기존 키를 재사용한다. 클레임은 `sub`=attachmentId, `typ`=`att-upload`/`att-view`, `exp`.
+- **검증 시 반드시 `typ`을 확인한다.** 일반 Access Token이 조회 토큰으로 통용되면 안 된다.
+- 만료: 업로드 토큰 **10분**, 조회 토큰 **30분**.
+- 나머지 첨부 API(`presign`·`complete`·`urls`·`DELETE`)는 **기존대로 Bearer 인증**이다.
+
+#### ⚠️ `raw`는 `ApiResponse` 래핑에서 제외된다
+
+바이너리 스트림이라 JSON으로 감쌀 수 없다. **공통 응답 포맷의 두 번째 예외**다(첫 번째는 OAuth2 302 리다이렉트).
+
+#### 조회는 일괄(batch)이다
+
+본문에 이미지가 N개면 요청도 N번이 되는 것을 막기 위해 `GET /urls?ids=1,2,3` 형태로 한 번에 받는다. 단건 조회 엔드포인트를 만들지 않는다.
+
+#### 소유권 위반은 404다
+
+첨부도 Todo와 동일하다. 타인 소유·없는 id·삭제됨을 **모두 404 `ATTACHMENT_NOT_FOUND`**로 응답한다(존재 여부 노출 방지). **403을 쓰지 않는다.**
+
+#### 파일 제약
+
+| 항목        | 값                                                  |
+| ----------- | --------------------------------------------------- |
+| 최대 크기   | **5MB**                                             |
+| 허용 타입   | `image/jpeg`, `image/png`, `image/gif`, `image/webp` |
+| 타입 검증   | 화이트리스트 + **매직바이트 확인** (클라이언트가 보낸 `contentType`을 그대로 믿지 않는다) |
+| 확장자      | `contentType`에서 역산한다. 원본 파일명의 확장자를 쓰지 않는다 |
+
 ---
 
 ## 6. 인증 설계
@@ -578,16 +656,45 @@ Tiptap이 생성한 HTML을 저장하고 렌더링하는 구조이므로 **양�
 허용 태그 (Tiptap 툴바와 1:1로 맞춘다):
 
 ```
-p, br, strong, em, h2, h3, ul, ol, li, a, code, pre, blockquote
+p, br, strong, em, h2, h3, ul, ol, li, a, code, pre, blockquote, img
 ```
 
 - `a`는 `href`만 허용하고, **`rel="noopener noreferrer"`와 `target="_blank"`를 정화 단계에서 강제 주입**한다 (tabnabbing 방지).
+- **`img`는 `data-attachment-id`와 `alt`만 허용하고 `src`는 허용하지 않는다** (v1.13 추가, 아래 ⚠️ 참조).
 - `href`는 `http`, `https`, `mailto` 스킴만 허용한다. `javascript:` 차단.
 - `script`, `iframe`, `style` 태그와 모든 `on*` 속성, `style` 속성은 제거한다.
 - 직접 정규식으로 구현하지 않는다. Jsoup Safelist를 사용한다.
 - **`Jsoup.clean(html, "", safelist, outputSettings)` 오버로드를 쓰고 `new Document.OutputSettings().prettyPrint(false)`를 넘긴다.** 기본 pretty-print가 블록 요소를 재포맷해 **코드 블록(`pre`)의 공백과 줄바꿈이 망가진다.**
 
 **렌더 시 (프론트)** — `lib/sanitize.ts`에서 DOMPurify로 한 번 더 정화한다. 서버를 신뢰하더라도 이중 방어를 유지한다.
+
+#### ⚠️ `img`에 `src`를 저장하지 않는다 (중요, v1.13)
+
+저장되는 본문은 다음 형태다. **`src`가 없다.**
+
+```html
+<p>회의 자료</p>
+<img data-attachment-id="42" alt="스크린샷">
+```
+
+이유가 둘이다.
+
+1. **만료되는 URL이 DB에 박히지 않는다.** 조회 URL은 30분 만료라 본문에 저장하면 하루 뒤 전부 깨진다.
+2. **임의의 외부 URL을 본문에 심는 경로가 원천 차단된다.** `src`를 허용하면 외부 추적 픽셀이나 임의 호스트 이미지를 넣을 수 있다.
+
+렌더링 시 URL을 주입하는데, **순서를 지켜야 한다.**
+
+```
+서버 HTML(src 없음)
+  → sanitizeHtml()                      ← ① 정화를 먼저
+  → DOM 파싱
+  → img[data-attachment-id]에 src 주입   ← ② 주입을 나중에
+  → 렌더
+```
+
+> ⚠️ **반대로 하면 방금 넣은 `src`를 DOMPurify가 지운다.** 주입은 문자열 이어붙이기가 아니라 `setAttribute`로 하고, 값이 `http(s)`로 시작하는지 확인한다. 헬퍼는 `src/lib/attachmentHtml.ts`에 둔다.
+
+> ⚠️ **에디터가 서버에 보내는 HTML에는 `src`가 있고, 서버가 저장하는 HTML에는 없다.** 저장 후 서버 응답으로 캐시를 덮어쓰므로 동작은 정상이다. "보낸 것과 응답이 다르다"를 버그로 오인하지 말 것.
 
 #### ⚠️ 정화의 적용 지점은 두 곳이다 — 하나만 하면 이중 방어가 아니다 (중요)
 
@@ -626,10 +733,20 @@ DOMPurify.sanitize(html, {
     "code",
     "pre",
     "blockquote",
+    "img", // v1.13 — 본문 이미지 첨부
   ],
-  ALLOWED_ATTR: ["href", "target", "rel"], // target·rel을 빼면 서버가 주입한 값이 렌더에서 지워진다
+  ALLOWED_ATTR: [
+    "href",
+    "target",
+    "rel", // target·rel을 빼면 서버가 주입한 값이 렌더에서 지워진다
+    "data-attachment-id", // v1.13 — src는 넣지 않는다
+    "alt",
+  ],
+  ALLOW_DATA_ATTR: false, // 명시한 data-* 하나만 통과시킨다
 });
 ```
+
+> ⚠️ `ALLOWED_ATTR`에 명시한 `data-attachment-id`는 `ALLOW_DATA_ATTR: false`에서도 통과한다(명시 목록이 우선). 구현 전에 **DOMPurify 공식 문서로 재확인**할 것 — 3장 "라이브러리 API를 기억에 의존하지 않는다".
 
 > ⚠️ `ALLOWED_ATTR`에서 `target`·`rel`을 빠뜨리면, 백엔드가 강제 주입한 `rel="noopener noreferrer"`가 **렌더 단계에서 제거되어 tabnabbing 방어가 무효화된다.**
 
@@ -696,7 +813,35 @@ DOMPurify.sanitize(html, {
 
 ### Tiptap 설정 (정화 화이트리스트와 일치시킬 것)
 
-**툴바**: 굵게(`strong`) · 기울임(`em`) · 제목 H2 · 제목 H3 · 불릿 목록 · 번호 목록 · 링크 · 인라인 코드 · 코드 블록 · 인용
+**툴바**: 굵게(`strong`) · 기울임(`em`) · 제목 H2 · 제목 H3 · 불릿 목록 · 번호 목록 · 링크 · 인라인 코드 · 코드 블록 · 인용 · **이미지**(v1.13)
+
+#### 이미지 확장 (v1.13)
+
+**`@tiptap/extension-image`를 설치한다.** StarterKit v3에는 포함되어 있지 않다. 이것이 이 프로젝트에서 유일하게 추가 승인된 라이브러리다(절대규칙 11).
+
+```ts
+import Image from "@tiptap/extension-image";
+
+// 첨부 ID를 data-attachment-id로 왕복시키는 커스텀 노드.
+// src는 저장되지 않으므로(6장) 렌더 시점에 주입한다.
+const AttachmentImage = Image.extend({
+  addAttributes() {
+    return {
+      ...this.parent?.(),
+      attachmentId: {
+        default: null,
+        parseHTML: (el) => el.getAttribute("data-attachment-id"),
+        renderHTML: (attrs) =>
+          attrs.attachmentId ? { "data-attachment-id": attrs.attachmentId } : {},
+      },
+    };
+  },
+});
+
+AttachmentImage.configure({ inline: false, allowBase64: false });
+```
+
+> ⚠️ **`allowBase64: false`가 중요하다.** 클립보드 이미지를 그대로 붙이면 `data:` URI가 본문에 들어가는데, `content` 50,000자 제한(4장)을 **한 장으로 즉시 초과**한다. 게다가 정화가 `src`를 지우므로 이미지가 조용히 사라진다. 붙여넣기·드래그앤드롭은 `editorProps`의 `handlePaste`·`handleDrop`으로 가로채 업로드 경로로 보낸다.
 
 #### ⚠️ StarterKit을 기본값으로 쓰지 않는다 (중요)
 
@@ -931,8 +1076,14 @@ onSettled: () => {
 | **Refresh Token 무효·재사용** | 401  | **`INVALID_REFRESH_TOKEN`** |
 | 권한 없음                     | 403  | `FORBIDDEN`              |
 | 리소스 없음 / 소유자 불일치   | 404  | `TODO_NOT_FOUND`         |
+| **첨부 없음 / 소유자 불일치** | 404  | **`ATTACHMENT_NOT_FOUND`** |
 | 이메일 중복 (회원가입)        | 409  | `EMAIL_DUPLICATED`       |
+| **첨부 상태 충돌 (재업로드 등)** | 409 | **`ATTACHMENT_INVALID_STATE`** |
 | 서버 오류                     | 500  | `INTERNAL_ERROR`         |
+
+> **v1.13 추가**: 첨부도 Todo와 동일하게 **소유권 위반을 404로** 응답한다(존재 여부 노출 방지). 403을 쓰지 않는다. 파일 크기·타입 위반은 기존 `INVALID_INPUT`(400), 서명 토큰 무효는 기존 `UNAUTHORIZED`(401)를 재사용한다.
+>
+> ⚠️ **`ErrorCode`를 추가하면 프론트도 함께 고쳐야 한다.** `src/types/api.ts`의 `ErrorCode` union과 `src/lib/errorMessages.ts`의 `MESSAGES` 맵 두 곳이다. 백엔드만 바꾸면 타입이 어긋난다.
 
 > **v1.9 추가**: `TOKEN_EXPIRED`는 프론트가 `/auth/refresh`를 자동 시도하는 신호로 쓰고(6장), 그 외 `UNAUTHORIZED`는 즉시 로그아웃 처리한다. 이 둘을 같은 코드로 묶으면 프론트가 매번 불필요한 refresh 시도를 하게 된다. `INVALID_REFRESH_TOKEN`은 `/auth/refresh` 자체가 거부될 때만 쓴다(`PRD.md` 5.1).
 
