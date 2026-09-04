@@ -1,7 +1,9 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.30 · **최종 수정** 2026-09-04
-> **v1.30 변경**: **Phase 12(이미지 첨부, 로컬 스토리지)와 Phase 13(S3 전환)을 신설**했다. `PRD.md` v1.11이 이미지 첨부를 MVP 범위로 편입(`TODO-17`·`TODO-18`)하고 `CLAUDE.md` v1.13이 스키마·API·정화 규칙을 확정한 데 따른 것이다. **번호와 실행 순서가 다르다** — 실행은 `12 → 11 → 13`이며, Phase 12는 로컬 디렉토리만 쓰므로 AWS 없이 지금 착수할 수 있고 Phase 13은 버킷·IAM이 필요해 Phase 11 완료가 선행 조건이다. 상세 지시서는 `docs/tiptap-image-upload-prompt.md`, 원본 프롬프트의 실측 검증 근거는 `docs/appendFileImage.md`. 함께 발견한 사실 하나를 기록해 둔다 — **이 문서와 `CLAUDE.md`가 파일 자체로 잘려 있다**(각각 Phase 11-3, 11장 중간). `(NKB 남음)` 마커가 최초 커밋부터 저장돼 있어 git 복구가 불가능하며, 유실이 아니라 처음부터 작성되지 않은 것이다. Phase 11 착수 전 재작성이 필요하다.
+> **버전** 1.31 · **최종 수정** 2026-09-04
+> **v1.31 변경**: **잘려 있던 Phase 11(AWS 배포)을 복원했다.** 11-3(HTTPS)이 `...상시 비용... (12KB 남음)`에서 문장 중간에 끊겨 있어 현 상태로는 착수가 불가능했다. 11-3을 완성하고 **11-4(Amplify)·11-5(연동 검증 + DoD 12항목)**를 작성했다. 같은 이유로 잘려 있던 `CLAUDE.md` 11~14장도 함께 복원했다(v1.14).
+> **아울러 v1.30의 판단을 정정한다** — 그때는 "유실이 아니라 처음부터 작성되지 않았다"고 적었으나 **틀렸다.** 이 문서 자체가 195행("프로파일별 `ddl-auto`는 `CLAUDE.md` 12장 표 참조")·198행("`.gitattributes`를 삭제하지 않는다, `CLAUDE.md` 13장")·353행("OAuth2는 MockMvc로 검증 불가, `CLAUDE.md` 14장")에서 **잘려나간 장을 번호와 내용까지 특정해 인용**하고 있다. 존재하지 않는 장을 그렇게 인용할 수는 없으므로, 원본에는 있었고 파일에 붙여넣는 과정에서 잘린 것이다. "최초 커밋부터 잘려 있었다"는 사실은 *언제 잘렸는지*만 말해줄 뿐 *원본에 있었는지*는 말해주지 않는데, 그것을 근거로 작성 여부를 단정한 것이 오류였다.
+> **v1.30 변경**: **Phase 12(이미지 첨부, 로컬 스토리지)와 Phase 13(S3 전환)을 신설**했다. `PRD.md` v1.11이 이미지 첨부를 MVP 범위로 편입(`TODO-17`·`TODO-18`)하고 `CLAUDE.md` v1.13이 스키마·API·정화 규칙을 확정한 데 따른 것이다. **번호와 실행 순서가 다르다** — 실행은 `12 → 11 → 13`이며, Phase 12는 로컬 디렉토리만 쓰므로 AWS 없이 지금 착수할 수 있고 Phase 13은 버킷·IAM이 필요해 Phase 11 완료가 선행 조건이다. 상세 지시서는 `docs/tiptap-image-upload-prompt.md`, 원본 프롬프트의 실측 검증 근거는 `docs/appendFileImage.md`. 함께 발견한 사실 하나를 기록해 둔다 — **이 문서와 `CLAUDE.md`가 파일 자체로 잘려 있다**(각각 Phase 11-3, 11장 중간). `(NKB 남음)` 마커가 최초 커밋부터 저장돼 있어 git 복구가 불가능하다. ~~유실이 아니라 처음부터 작성되지 않은 것이다.~~ **(v1.31에서 이 판단을 정정했다 — 위 v1.31 항목 참조. 다른 문서의 인용을 근거로 원본에는 존재했음이 확인됐고, v1.31에서 복원을 마쳤다.)**
 > **v1.29 변경**: Phase 7 DoD의 마지막 미체크 항목("구글 로그인 → 콜백 → `/todos` 이동, URL에서 토큰 제거됨")을 실제 브라우저 왕복으로 검증해 완료(✅) 처리했다. Phase 5가 v1.23에서 실제 Google 자격증명으로 먼저 완료됐음에도 Phase 7 쪽 DoD는 그 시점에 재검증되지 않고 `[ ]`로 남아 있던 항목이다. 로컬 백엔드(`local` 프로파일)·프론트엔드 dev 서버를 함께 띄운 뒤 `/login`에서 "구글로 로그인" 클릭 → 이미 인증된 Chrome 세션의 기존 동의 내역 덕분에 계정 선택 화면 없이 즉시 `/oauth/callback?token=...`으로 리다이렉트 → 2초 내 `/todos`로 자동 이동하며 URL에서 `?token=` 쿼리가 완전히 사라짐을 확인했다. 추가로 `localStorage`의 키가 명세대로 `todo_access_token` 하나뿐임과, 헤더에 닉네임만 보이고 이메일이 DOM 어디에도 없음(`AUTH-08`)을 JS 실행으로 교차 확인했다. Phase 7의 DoD 18개가 전부 통과해 진행 현황 표를 ✅로 올렸다. 코드 변경 없음(검증만 수행).
 > **v1.28 변경**: v1.27이 새로 발견하고 미수정으로 남겨뒀던 타임존 회귀를 사용자 지시("지금 고쳐줘")로 같은 날 수정했다. 원인은 `application.properties`의 `spring.jpa.properties.hibernate.jdbc.time_zone=UTC` — JVM 기본 타임존이 KST인 환경에서 이 설정이 있으면 Hibernate가 이미 UTC로 계산된 `LocalDateTime` 값을 KST 벽시계로 오인해 다시 UTC로 변환(-9h)해버린다. 이 한 줄을 제거하고(`todo-backend` 커밋 `7d0385a`), 이 회귀를 계속 놓치던 `UserRepositoryTest`의 UTC 검증을 JDBC로 DB 원본 값을 재조회하는 방식으로 보강했다. `CLAUDE.md` 4장도 함께 정정(잘못된 지시를 남겨두면 재발한다). `./mvnw test` 21건 통과 + 실제 서버로 재실측(수정 후 오차 0.x초) 확인. Phase 10 체크리스트가 전 항목 통과 상태가 되어 진행 현황을 ✅로 올렸다. `v1.0.0` 태그는 사용자가 원격 push와 함께 원하는 시점에 달기로 하고 아직 보류.
 > **v1.27 변경**: v1.26이 남겨뒀던 5개 항목을 사용자 지시로 마저 처리했다. (1) 구글 로그인 실왕복 재검증 완료(실제 Google 세션으로 재현, Refresh Token 회전까지 DB로 확인) — 이 과정에서 **모든 엔티티의 타임스탬프가 실제보다 9시간 뒤처져 저장되는 심각한 회귀를 새로 발견**했다(Phase 2가 고쳤다고 문서화한 바로 그 버그의 재발로 보임, 아직 미수정 — 상세 근거는 아래 인증 체크리스트 경고 박스 참조). (2) `INTERNAL_ERROR`(500) 재현 경로를 다시 찾아 확인 완료 — `GlobalExceptionHandler`의 catch-all이 경로/쿼리 파라미터 타입 불일치(`MethodArgumentTypeMismatchException`)를 500으로 처리하는 게 원인이었고, 프론트의 에러 문구·재시도 버튼도 정상 동작함을 확인했다. (3)(4) 1920px 반응형과 비-Chromium 엔진 확인은 사용자 확인 후 현재 상태(360px만 실측·Chrome만 실측)로 완료 처리했다. (5) `todo-backend`의 `develop`이 `main`보다 6개 커밋 뒤처져 있던 문제를 `git merge --ff-only`로 해소했다(갈라진 히스토리가 없어 손실 없이 fast-forward, 둘 다 `53923ac`). `v1.0.0` 태그는 새로 발견한 타임존 회귀 때문에 계속 보류한다 — 운영 배포 전 반드시 해결해야 하는 문제로 판단된다.
@@ -679,9 +681,54 @@
 
 ### 11-3. HTTPS (방식 확정: nginx + certbot)
 
-개인 프로젝트 규모이므로 **EC2 한 대에 nginx 리버스 프록시 + Let's Encrypt**로 간다. ALB + ACM은 관리가 편하지만 상시 비용... (12KB 남음)
+개인 프로젝트 규모이므로 **EC2 한 대에 nginx 리버스 프록시 + Let's Encrypt**로 간다. ALB + ACM은 관리가 편하지만 **상시 비용이 발생**한다 — ALB는 트래픽이 없어도 시간당 요금이 붙어, 개인 프로젝트에서는 EC2 인스턴스 비용보다 커지기 쉽다.
 
-> ⚠️ **위 문장은 파일이 잘려 있다.** `(12KB 남음)`은 컨텍스트 truncation 마커가 파일에 그대로 저장된 것으로, **최초 커밋부터 이 상태**라 git에서 복구할 온전한 버전이 없다. Phase 11-3 이후 내용(11-4 프론트 배포, 11-5 검증 등)이 유실된 것이 아니라 **애초에 작성되지 않았다.** Phase 11 착수 전에 이 부분을 새로 작성해야 한다. 같은 문제가 `CLAUDE.md` 11장에도 있다.
+**nginx 구성**
+
+- `80` → `443` 영구 리다이렉트만 담당한다. **평문으로 서비스하지 않는다.**
+- `443`에서 `proxy_pass http://127.0.0.1:8080`으로 넘긴다.
+- `proxy_set_header`로 `Host`·`X-Real-IP`·`X-Forwarded-For`·**`X-Forwarded-Proto https`**를 넘긴다.
+  > ⚠️ **`X-Forwarded-Proto`를 빠뜨리면 쿠키의 `Secure` 속성 판단과 리다이렉트 URL 생성이 어긋난다.** Spring이 요청을 http로 인식해 OAuth2 리다이렉트가 `http://`로 나가고, 구글 콘솔에 등록한 `https://` URI와 불일치해 `redirect_uri_mismatch`가 난다.
+- 업로드 크기 — 첨부 기능(Phase 12)이 5MB 파일을 PUT으로 받으므로 **`client_max_body_size`를 6MB 이상**으로 올린다. 기본값 1MB면 `413`으로 막힌다.
+
+**certbot**
+
+- `certbot --nginx -d api.example.com`으로 발급. **80이 열려 있어야 HTTP-01 챌린지가 성공한다**(11-2 경고 참조).
+- 자동 갱신은 설치 시 등록되는 `systemd timer`(`certbot.timer`)가 담당한다. `systemctl list-timers | grep certbot`으로 확인한다.
+- `certbot renew --dry-run`으로 갱신 경로를 **미리 한 번 검증**한다. 90일 뒤에 실패를 발견하면 서비스가 그대로 중단된다.
+
+### 11-4. 프론트엔드 (Amplify)
+
+- GitHub 저장소(`todo-frontend`) 연결, **`main` 브랜치**를 빌드 대상으로 지정
+- 빌드 설정은 기본값(`next build`)을 쓴다 — **`distDir`을 설정하지 않는다**(출력은 `.next`여야 한다)
+- 환경변수 **`NEXT_PUBLIC_API_BASE_URL`**을 API 도메인(`https://api.example.com`)으로 설정
+- Node 런타임 **20 이상** (Amplify는 14·16·18 지원을 종료했다)
+- 커스텀 도메인 연결 후 인증서 발급 대기
+
+> ⚠️ **한 앱에서 SSR 브랜치와 SSG 브랜치를 섞어 배포할 수 없다.** `main`과 `develop`을 모두 배포한다면 렌더링 방식이 같아야 한다. 이 프로젝트는 전부 SSR/CSR 혼합(`next build`)으로 통일한다.
+>
+> ⚠️ **`public/static` 경로를 만들지 않는다.** Amplify 예약 경로다 (`CLAUDE.md` 3장).
+
+### 11-5. 연동 검증 및 DoD
+
+**로컬에서는 절대 드러나지 않고 배포 후에만 터지는 것**을 앞에 둔다. 위에서부터 순서대로 확인한다.
+
+- [ ] **`FRONTEND_URL`과 `CORS_ALLOWED_ORIGINS`를 분리해서 설정했는가** — 겸용하면 `OAuth2SuccessHandler`가 `https://a.com,https://b.com/oauth/callback?token=...`이라는 깨진 주소로 302를 보낸다. 로컬은 단일값이라 Phase 5를 통과하고 **여기서야 발현한다** (`CLAUDE.md` 6장)
+- [ ] **Refresh Token 쿠키가 `SameSite=None; Secure`로 나가는가** — Amplify 도메인과 API 도메인이 cross-site라 `Lax`면 브라우저가 쿠키를 전송하지 않아 **자동 로그인 연장이 통째로 실패**한다. 로컬은 same-site라 `Lax`로 동작했다
+- [ ] **구글 콘솔의 승인된 리다이렉트 URI에 운영 도메인이 등록됐는가** — `https://api.example.com/login/oauth2/code/google`. 누락 시 `redirect_uri_mismatch`
+- [ ] `CORS_ALLOWED_ORIGINS`에 Amplify 브랜치 도메인과 커스텀 도메인이 **둘 다** 들어 있는가
+- [ ] **RDS 스키마가 적용됐고 `ddl-auto=validate`로 기동되는가** (`CLAUDE.md` 4장·12장)
+- [ ] **타임스탬프가 UTC로 저장되는가** — 로컬 KST ↔ RDS UTC 환경 차이. `created_at`을 DB에서 직접 조회해 실제 시각과 대조한다
+- [ ] `/actuator/health`만 열려 있고 나머지 `/actuator/**`는 막혀 있는가
+- [ ] EC2 보안그룹에서 **8080이 외부에 노출되지 않고**, 22가 본인 IP로 제한됐는가
+- [ ] RDS가 프라이빗 서브넷에 있고 퍼블릭 액세스가 비활성인가
+- [ ] **첨부 업로드가 운영에서 동작하는가** (Phase 12를 먼저 실행하므로 해당) — `upload/` 디렉토리 생성·쓰기 권한, nginx `client_max_body_size`
+- [ ] 회원가입 → 로그인 → 할 일 생성 → 이미지 첨부 → 완료 토글 → 삭제까지 **운영 도메인에서 전 흐름 왕복**
+- [ ] 30분 뒤 Access Token 만료 시 자동 재발급이 동작하는가 (또는 만료된 토큰을 심어 재현)
+
+**태그**: 통과 시 세 저장소 모두 `v1.0.0`
+
+> ⚠️ **11-2에 한 줄 추가**: Phase 12(이미지 첨부)를 먼저 실행하므로 배포 대상에 첨부 기능이 포함된다. jar 전송 후 **`upload/` 디렉토리를 만들고 서비스 실행 사용자에게 쓰기 권한**을 준다. `LOCAL_UPLOAD_DIR`을 systemd `EnvironmentFile`에 명시하는 편이 안전하다(상대 경로는 작업 디렉토리에 의존한다).
 
 ---
 

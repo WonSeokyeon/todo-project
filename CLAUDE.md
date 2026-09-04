@@ -1,6 +1,7 @@
 # Todo List 프로젝트 개발 가이드
 
-> **버전** 1.13 · **최종 수정** 2026-09-04
+> **버전** 1.14 · **최종 수정** 2026-09-04
+> **v1.14 변경**: **잘려 있던 11장 뒷부분과 12·13·14장을 복원했다.** 이 파일은 최초 커밋부터 11장 중간(`...에러 코드를... (10KB 남음)`)에서 끊겨 있었다 — 컨텍스트 truncation 마커가 그대로 저장된 것이다. 처음엔 "애초에 작성되지 않았다"고 판단했으나 **틀렸다**: `ROADMAP.md`가 195행에서 "프로파일별 `ddl-auto`는 12장 표 참조", 198행에서 "`.gitattributes`를 삭제하지 않는다(13장)", 353행에서 "OAuth2는 MockMvc로 검증 불가(14장)"라며 **번호와 내용을 특정해 인용**하고 있고, 이 문서 6장도 "아래 11장의 EntryPoint / AccessDeniedHandler"를 참조한다. 존재하지 않는 장을 그렇게 인용할 수는 없으므로, 원본에는 있었고 붙여넣기에서 잘린 것이다. 복원은 **추측 없이** 인용된 계약 + 실제 코드·설정 파일 + 이미 확정된 결정에만 근거했고, 각 장 머리에 복원 노트를 남겼다. 코드 변경은 없다.
 > **v1.13 변경**: **본문 이미지 첨부를 MVP 범위로 편입**했다(`PRD.md` v1.11의 `TODO-17`·`TODO-18`). 3장의 "S3는 MVP 범위에서 제외한다"를 정정하고, 4장에 `attachments` 테이블, 5장에 첨부 API 6종, 6장 XSS 절에 `img` 허용 규칙, 8장 툴바에 이미지 버튼, 11장에 `ATTACHMENT_*` 에러 코드를 추가했다. **저장소는 이번엔 로컬 디렉토리이고 S3 전환은 Phase 13**(AWS 배포 이후)이다 — 인터페이스만 지금 확정한다. 이번 건은 원칙대로 **문서를 먼저 고치고 구현에 들어간다**(6장). 상세 지시서는 `docs/tiptap-image-upload-prompt.md`, 원본 프롬프트 분석 근거는 `docs/appendFileImage.md`.
 > **v1.12 변경**: 7장 화면 목록과 6장 XSS 방어 절의 전제였던 "상세 화면은 보기/편집 모드를 나누지 않는다"(`/todos/[id]` 진입 즉시 편집)를 뒤집었다. 목록에서 항목을 선택하면 이제 읽기 전용 확인 화면(`/todos/[id]`)으로 가고, 수정은 별도 `/todos/[id]/edit`로 분리했으며 목록에도 전용 "수정" 버튼을 뒀다. **이번 건은 예외적으로 코드가 먼저 바뀌고 문서가 뒤따라간 경우다**(사용자가 실사용 중 "목록에서 누르면 곧장 수정 화면이 열린다"를 버그로 보고했고, `todo-frontend`에 이미 반영·커밋됨) — 원칙(문서 먼저, CLAUDE.md 6장)의 예외이지 새 원칙은 아니다. 읽기 전용 화면에 `dangerouslySetInnerHTML` 호출 지점이 처음 생겨 6장의 "호출 지점이 없다" 서술도 함께 정정했다. `docs/PRD.md`의 `TODO-09`·5.6절도 같은 이유로 함께 고쳤다. `docs/ROADMAP.md`의 Phase 8 완료 기록(과거 실측 로그)은 당시 사실이었으므로 소급 수정하지 않는다.
 > **v1.11 변경**: 9장 「`useAuth`는 `exp`를 봐야 한다」 절에 v1.9 이전 서술이 남아 있었다 — "`JWT_EXPIRATION`이 24시간이라 개발 중에는 만료를 만나기도 어렵다"는 근거가 두 군데 틀렸다. (1) v1.9에서 Access Token 만료를 **30분**으로 확정했으므로 24시간이 아니고, (2) `JWT_EXPIRATION`이라는 환경변수는 존재하지 않는다 — 실제 값은 `JwtTokenProvider.ACCESS_TOKEN_EXPIRATION`(`Duration.ofMinutes(30)`) 코드 상수다(`todo-backend` 실제 코드로 확인). 결론(`exp`를 디코드해야 한다)은 그대로 유효하며, 근거 문장만 사실에 맞게 고쳤다. 코드 변경은 없다.
@@ -1087,4 +1088,234 @@ onSettled: () => {
 
 > **v1.9 추가**: `TOKEN_EXPIRED`는 프론트가 `/auth/refresh`를 자동 시도하는 신호로 쓰고(6장), 그 외 `UNAUTHORIZED`는 즉시 로그아웃 처리한다. 이 둘을 같은 코드로 묶으면 프론트가 매번 불필요한 refresh 시도를 하게 된다. `INVALID_REFRESH_TOKEN`은 `/auth/refresh` 자체가 거부될 때만 쓴다(`PRD.md` 5.1).
 
-- **OAuth 계정 충돌은 이 표에 없다.** REST 응답이 아니라 `?error=email_conflict` 쿼리를 붙인 302 리다이렉트로 처리하므로 에러 코드를... (10KB 남음)
+- **OAuth 계정 충돌은 이 표에 없다.** REST 응답이 아니라 `?error=email_conflict` 쿼리를 붙인 302 리다이렉트로 처리하므로 **에러 코드를 부여하지 않는다.** 프론트는 `/login`의 쿼리 파라미터를 읽어 문구를 띄운다(6장 참조).
+
+### ⚠️ Security 필터에서 난 예외는 `GlobalExceptionHandler`가 못 잡는다 (중요)
+
+`@RestControllerAdvice`는 **DispatcherServlet에 진입한 요청**만 처리한다. `JwtAuthenticationFilter`처럼 서블릿 필터 단계에서 인증이 거부되면 컨트롤러에 도달하기 전에 응답이 나가므로, `GlobalExceptionHandler`가 개입할 수 없다.
+
+그대로 두면 **Security가 만든 기본 401/403 응답(빈 본문 또는 Spring 기본 포맷)**이 나가고, 프론트 `apiClient`의 `ApiResponse` 언랩이 깨진다. 그래서 핸들러를 별도로 둔다.
+
+| 클래스                        | 시점              | 응답                            |
+| ----------------------------- | ----------------- | ------------------------------- |
+| `JwtAuthenticationEntryPoint` | 인증 실패 (401)   | `TOKEN_EXPIRED` 또는 `UNAUTHORIZED` |
+| `JwtAccessDeniedHandler`      | 인가 실패 (403)   | `FORBIDDEN`                     |
+
+- **두 핸들러도 반드시 `ApiResponse` 포맷으로 응답한다.** 포맷이 갈리면 프론트가 에러 코드를 읽지 못한다.
+- `TOKEN_EXPIRED`와 `UNAUTHORIZED`의 구분은 **`JwtAuthenticationFilter`가 request attribute로 표시**하고 EntryPoint가 그것을 읽는 방식이다. 필터가 `ExpiredJwtException`을 잡아 attribute를 세팅한다 — 필터에서 바로 응답을 쓰지 않는 이유는 응답 생성 지점을 한 곳으로 모으기 위해서다.
+- `SecurityConfig`의 `.exceptionHandling(...)`에 두 빈을 등록한다(6장).
+
+> ⚠️ **`ObjectMapper`를 주입받을 때 `tools.jackson.databind.ObjectMapper`인지 확인한다.** Spring Boot 4는 Jackson 3를 쓴다. `com.fasterxml.jackson.databind.ObjectMapper`(Jackson 2)를 주입하려 하면 **기동이 실패한다** — jjwt-jackson이 Jackson 2를 런타임 전이 의존성으로 끌어오지만 스프링 빈으로 등록되지는 않기 때문이다. 3장 참조.
+
+### `GlobalExceptionHandler`가 처리하는 예외
+
+| 예외                                | 응답                                      |
+| ----------------------------------- | ----------------------------------------- |
+| `BusinessException`                 | `ErrorCode`가 지정한 상태·코드            |
+| `MethodArgumentNotValidException`   | 400 `INVALID_INPUT` + 필드별 메시지       |
+| `HttpMessageNotReadableException`   | 400 `INVALID_INPUT` (JSON 파싱 실패)      |
+| `IllegalArgumentException`          | 400 `INVALID_INPUT` (BCrypt 72바이트 안전장치 — 4장) |
+| `Exception` (catch-all)             | 500 `INTERNAL_ERROR`                      |
+
+- **catch-all을 반드시 둔다.** 없으면 예상 못 한 예외가 Spring 기본 오류 페이지로 나가 포맷이 깨진다.
+- 그러나 catch-all은 **원인을 가린다.** 아래 함정을 알고 있어야 한다.
+
+> ⚠️ **경로·쿼리 파라미터 타입 불일치가 500으로 샌다.** `/api/v1/todos/abc`처럼 `Long` 자리에 문자열이 오면 `MethodArgumentTypeMismatchException`이 발생하는데, 전용 핸들러가 없으면 catch-all이 받아 **500 `INTERNAL_ERROR`**로 응답한다. 의미상 400이 맞다(Phase 10, 2026-09-02 실측 발견). 프론트는 이 경우 "서버 오류" 문구와 재시도 버튼을 띄우게 되어 사용자가 원인을 알 수 없다.
+
+### 로깅 정책
+
+- **4xx는 `warn`, 스택 트레이스 없이** 코드와 메시지만 남긴다. 사용자 입력 오류라 스택은 소음이다.
+- **5xx는 `error`, 스택 트레이스를 포함**한다. 원인 추적이 목적이다.
+- **예외 메시지에 비밀·토큰·비밀번호를 담지 않는다.** 로그와 응답 양쪽에 해당한다.
+
+---
+
+## 12. 환경과 프로파일
+
+> **복원 노트 (v1.14)**: 이 장은 파일이 잘려 비어 있던 것을 실제 설정 파일로 재작성했다. `ROADMAP.md` 195행이 "프로파일별 `ddl-auto`는 `CLAUDE.md` 12장 표 참조"라며 이 장을 인용하고 있었다.
+
+### 프로파일별 `ddl-auto` (인용 대상 표)
+
+| 프로파일 | 설정 파일                                       | `ddl-auto`    | 데이터베이스              |
+| -------- | ----------------------------------------------- | ------------- | ------------------------- |
+| `local`  | `application-local.properties`                  | `update`      | 로컬 `todolist_db`        |
+| `test`   | `src/test/resources/application-test.properties` | `create-drop` | 로컬 `todolist_test`      |
+| `prod`   | `application-prod.properties`                   | `validate`    | RDS `todolist_db`         |
+
+- **`prod`가 `validate`이므로 테이블을 만들 주체가 없다.** 운영 스키마는 4장의 「운영 스키마 생성 절차」에 따라 DDL을 추출해 **1회 수동 적용**한다. 이 순서를 건너뛰면 기동 시 스키마 검증에 실패한다.
+- `test`는 `create-drop`이라 매 실행마다 스키마를 새로 만든다. **`todolist_db`와 다른 DB(`todolist_test`)를 쓴다** — 같은 DB를 가리키면 개발 데이터가 날아간다.
+
+### 설정 파일 규칙
+
+- **형식은 `.properties`다. `.yml`을 쓰지 않는다** (부모 CLAUDE.md 절대규칙 9).
+- 기본 활성 프로파일은 `spring.profiles.active=${SPRING_PROFILES_ACTIVE:local}`이다.
+  > ⚠️ **이 값을 `local` 고정값으로 덮어쓰지 말 것.** 덮어쓰면 운영에서 `SPRING_PROFILES_ACTIVE=prod`를 주입해도 무시되어 로컬 설정으로 기동한다.
+- 공통값은 `application.properties`에 두고, 프로파일 파일은 **차이나는 값만** 오버라이드한다.
+- 커밋되는 파일에는 **placeholder만** 둔다(`${DB_PASSWORD}`). 실제 값은 `.gitignore` 대상 파일이나 환경변수로 뺀다.
+- **`.gitignore` 대상 설정 파일에는 반드시 `.example` 짝을 둔다** — `application-local.properties` ↔ `application-local.properties.example`. 짝이 없으면 새로 클론한 사람이 어떤 키가 필요한지 알 수 없다.
+
+### 환경변수 목록
+
+**백엔드**
+
+| 변수                    | 용도                                    | 비고                                        |
+| ----------------------- | --------------------------------------- | ------------------------------------------- |
+| `SPRING_PROFILES_ACTIVE` | 활성 프로파일                          | 미지정 시 `local`                           |
+| `DB_URL`                | JDBC URL                                | 기본 `jdbc:postgresql://localhost:5432/todolist_db` |
+| `DB_USERNAME`           | DB 사용자                               | 기본 `postgres`                             |
+| `DB_PASSWORD`           | DB 비밀번호                             | **테스트 실행에도 필요** (14장)             |
+| `JWT_SECRET`            | JWT 서명 키                             | **테스트 실행에도 필요** (14장)             |
+| `CORS_ALLOWED_ORIGINS`  | CORS 허용 오리진                        | **쉼표 구분 목록**                          |
+| `FRONTEND_URL`          | OAuth2 리다이렉트 기준 주소             | **단일 URL** — 위와 겸용 금지 (6장)         |
+| `GOOGLE_CLIENT_ID`      | 구글 OAuth2                             | 기본 `changeme` (없어도 기동은 된다)        |
+| `GOOGLE_CLIENT_SECRET`  | 구글 OAuth2                             | 기본 `changeme`                             |
+| `STORAGE_TYPE`          | 첨부 저장소 종류                        | `local` / `s3` (Phase 13)                   |
+| `LOCAL_UPLOAD_DIR`      | 로컬 첨부 저장 경로                     | 기본 `../upload`                            |
+
+**프론트엔드**
+
+| 변수                       | 용도             | 비고                                  |
+| -------------------------- | ---------------- | ------------------------------------- |
+| `NEXT_PUBLIC_API_BASE_URL` | API 서버 주소    | 코드가 여기에 `/api/v1`을 붙인다      |
+
+> `NEXT_PUBLIC_` 접두사가 붙은 값은 **브라우저 번들에 그대로 들어간다.** 비밀을 넣지 않는다.
+
+### 프로파일별로 갈리는 값
+
+로컬에서는 정상인데 운영에서만 깨지는 항목들이다. **프로파일 파일에서 반드시 분리한다.**
+
+| 항목                    | local              | prod                   | 분리하지 않으면            |
+| ----------------------- | ------------------ | ---------------------- | -------------------------- |
+| `app.cookie.secure`     | `false`            | `true`                 | HTTPS에서 쿠키 미전송      |
+| `app.cookie.same-site`  | `Lax`              | `None`                 | cross-site에서 Refresh 실패 |
+| `spring.jpa.show-sql`   | `true`             | `false`                | 운영 로그 폭증             |
+| `ddl-auto`              | `update`           | `validate`             | 운영 스키마 임의 변경      |
+
+---
+
+## 13. Git과 개발 환경
+
+> **복원 노트 (v1.14)**: 이 장도 잘려 있던 것을 재작성했다. `ROADMAP.md` 198행이 "`.gitattributes`는 이미 있다. **삭제하거나 덮어쓰지 않는다** (`CLAUDE.md` 13장)"라며 이 장을 인용하고 있었다.
+
+### ⚠️ `.gitattributes`를 삭제하거나 덮어쓰지 않는다 (인용 대상 규칙)
+
+`todo-backend/.gitattributes`는 줄바꿈을 강제한다.
+
+```gitattributes
+* text=auto eol=lf          # 저장소 전체를 LF로 통일
+/mvnw text eol=lf           # 유닉스 래퍼는 반드시 LF
+*.cmd text eol=crlf         # 윈도우 래퍼는 반드시 CRLF
+*.bat text eol=crlf
+*.sh  text eol=lf
+```
+
+**`/mvnw`가 CRLF로 체크아웃되면 Git Bash에서 `bad interpreter` 오류가 나 빌드 자체가 불가능해진다.** 개인의 `core.autocrlf` 설정과 무관하게 저장소가 형식을 강제하는 것이 이 파일의 목적이다. 파일 정리 명목으로 지우지 않는다.
+
+### 폴리레포 구조 (2장과 교차 참조)
+
+**독립된 git 저장소 3개**다. 모노레포가 아니다.
+
+- 루트 `todo-project/.gitignore`가 `todo-backend/`·`todo-frontend/`를 **반드시 제외**해야 한다. 빠뜨리면 Git이 하위 폴더를 gitlink로 커밋해 클론했을 때 빈 폴더만 남는다.
+- 첨부 저장 디렉토리 `upload/`도 루트 `.gitignore` 대상이다(4장).
+
+### 브랜치와 커밋
+
+- 브랜치: `main`(배포 가능) ← `develop` ← `feature/{작업명}`
+- 커밋 메시지: `feat:` · `fix:` · `refactor:` · `test:` · `docs:` · `chore:` (Conventional Commits, **본문은 한글**)
+- **API 계약이 바뀌면 문서 저장소를 먼저 수정**한 뒤 백엔드 → 프론트엔드 순으로 반영한다.
+- 태그: Phase 완료 시 `v0.{Phase번호}.0`. 전체 검증 통과 시 세 저장소 모두 `v1.0.0`.
+
+> ⚠️ **`.gitignore`는 이미 추적 중인 파일에 소급 적용되지 않는다.** 규칙을 나중에 추가해도 이전에 커밋된 파일은 계속 추적된다 — `git rm --cached`로 추적을 해제해야 한다(Phase 10에서 `.claude/plans/`로 실제 겪은 사례).
+
+### pre-commit 훅은 저장소마다 다르다
+
+git 훅은 `core.hooksPath`가 **저장소 단위**로 동작하므로 두 벌이 필요하다.
+
+| 저장소          | 방식                    |
+| --------------- | ----------------------- |
+| `todo-frontend` | husky + lint-staged     |
+| `todo-backend`  | 순수 셸 훅 (`.githooks/`) |
+| `todo-project`  | 훅 없음 (문서만 담는다) |
+
+백엔드가 husky를 쓰지 않는 이유는, 그것 하나 때문에 Java 프로젝트에 `package.json`과 `node_modules`를 들이지 않기 위해서다. 상세는 `docs/DEV_TOOLS.md`.
+
+> ⚠️ **백엔드 훅의 비밀 탐지 정규식은 오탐한다.** `(password|secret|...)\s*[:=]\s*<5자 이상>` 패턴이라 `this.password = password;` 같은 평범한 생성자 대입도 걸린다. 변수명을 바꿔도 같은 패턴에 걸려 코드로 우회할 수 없다. **실제 비밀값이 없음을 직접 확인했다면 `git commit --no-verify`가 정상 경로다** (훅 스크립트 자체가 이 우회를 안내한다).
+
+### 로컬 개발 환경
+
+| 항목       | 버전                                  |
+| ---------- | ------------------------------------- |
+| JDK        | 21                                    |
+| Node.js    | `.nvmrc` 기준 (현재 24.18.0), **20 이상** |
+| PostgreSQL | 17 (직접 설치)                        |
+| 빌드       | `./mvnw` (래퍼 사용, 로컬 Maven 설치 불필요) |
+
+- **Docker를 사용하지 않는다.** Dockerfile · docker-compose.yml · Testcontainers 모두 금지다.
+- 백엔드 `./mvnw spring-boot:run`(8080) · 프론트 `npm run dev`(3000)를 각각 띄운다.
+
+> ⚠️ **dev 서버가 켜진 채로 `npm run build`를 같은 디렉토리에서 실행하지 않는다.** `.next` 캐시가 섞여 정적 청크가 503으로 깨진다. 빌드 전에 dev 서버를 내리거나 별도 워크트리를 쓴다(Phase 8 실측).
+
+---
+
+## 14. 테스트 전략
+
+> **복원 노트 (v1.14)**: 이 장도 잘려 있던 것을 실제 테스트 코드로 재작성했다. `ROADMAP.md` 353행이 "OAuth2 흐름은 실제 구글 서버와 통신하므로 MockMvc로 끝까지 검증할 수 없다 (`CLAUDE.md` 14장)"라며 이 장을 인용하고 있었다.
+
+### 테스트 종류와 사용처
+
+| 종류                                     | 대상                      | 실제 예시                                      |
+| ---------------------------------------- | ------------------------- | ---------------------------------------------- |
+| `@DataJpaTest`                           | 리포지토리 · 엔티티 매핑  | `TodoRepositoryTest`, `UserRepositoryTest`      |
+| `@SpringBootTest` + `@AutoConfigureMockMvc` | API 통합 (요청~응답 전체) | `AuthIntegrationTest`, `TodoIntegrationTest`    |
+| 순수 단위 테스트                         | 외부 통신이 끼는 로직     | `CustomOAuth2UserServiceTest`                   |
+
+### ⚠️ OAuth2는 통합 테스트로 끝까지 검증할 수 없다 (인용 대상 규칙)
+
+OAuth2 로그인은 **실제 구글 서버와 왕복**해야 완성된다. MockMvc로는 인가 요청 이후를 재현할 수 없으므로, 통합 테스트로 만들려 하면 시간만 쓰고 실패한다.
+
+- **`CustomOAuth2UserService`의 분기 로직만 단위 테스트로 검증한다** — 신규 가입 / 기존 GOOGLE 계정 재조회 / 로컬 계정 충돌 거부 / nickname 미지정 / nickname 절삭.
+- **왕복 자체는 사람이 브라우저로 확인한다.** 이는 자동화 한계이지 미완성이 아니다.
+
+### ⚠️ 인메모리 DB(H2)를 쓰지 않는다
+
+테스트도 **실제 PostgreSQL**(`todolist_test`, `create-drop`)에 붙는다. H2는 방언이 달라 **H2에서 통과하고 PostgreSQL에서 실패하는 테스트**를 만든다. 이 프로젝트는 실제로 그런 사례를 겪었다 — `LOWER(CAST(:keyword AS string))` 없이는 PostgreSQL이 NULL 파라미터 타입을 추론하지 못해 목록 조회가 500으로 실패한다(4장 참조).
+
+### ⚠️ `./mvnw test`는 환경변수 2개를 요구한다
+
+**`test` 프로파일은 `application-local.properties`를 상속하지 않는다**(그 파일은 `local` 전용이다). `application.properties`의 placeholder를 그대로 쓰므로 셸에 직접 설정해야 한다.
+
+```bash
+DB_PASSWORD=... JWT_SECRET=... ./mvnw test
+```
+
+설정하지 않으면 **`ApplicationContext failure threshold exceeded`**로 근본 원인이 가려진 채 대량 실패한다. 진짜 원인(`PSQLException: password 인증 실패`, `Could not resolve placeholder 'JWT_SECRET'`)은 `target/surefire-reports/*.xml`의 `Caused by`까지 봐야 드러난다(Phase 10, 2026-09-02 실측).
+
+### ⚠️ UTC 저장 검증은 DB 원본값을 재조회한다
+
+`saveAndFlush` 직후의 **메모리 상 엔티티**만 검증하면 타임존 왜곡을 잡지 못한다. Hibernate가 바인딩 단계에서 값을 변환해도 메모리 객체는 그대로이기 때문이다.
+
+- **JDBC로 컬럼 원본값을 직접 재조회해 대조한다.** `UserRepositoryTest`가 이 패턴이다.
+- 이 검증이 없어서 타임존 회귀를 두 번 놓쳤다(4장 참조).
+
+### ⚠️ Boot 4에서 테스트 슬라이스 패키지가 이동했다
+
+| 애노테이션                   | Boot 4 패키지                                          |
+| ---------------------------- | ------------------------------------------------------ |
+| `@DataJpaTest`               | `org.springframework.boot.data.jpa.test.autoconfigure` |
+| `@AutoConfigureTestDatabase` | `org.springframework.boot.jdbc.test.autoconfigure`     |
+
+Boot 3의 `org.springframework.boot.test.autoconfigure.orm.jpa.*`는 **존재하지 않는다.** 기억으로 짐작하지 말고 실제 jar(`unzip -l`)로 확인한다. 테스트 스타터도 세분화되어 있다(`spring-boot-starter-data-jpa-test`, `-webmvc-test` 등).
+
+### 프론트엔드는 테스트 프레임워크를 도입하지 않았다
+
+**의도된 결정이다.** Jest·Vitest·Playwright를 설치하지 않는다.
+
+- 대신 **`npm run validate`**(typecheck + lint + format:check)를 완료 조건으로 삼는다.
+- 동작 검증은 **브라우저 실측**으로 한다. Phase별 DoD가 그 역할을 한다.
+- MVP 범위에서 테스트 인프라를 세우는 비용보다 화면을 직접 확인하는 편이 빠르다고 판단했다. 규모가 커지면 재검토한다.
+
+### 테스트를 작성하는 시점
+
+- Phase 3~5는 **기능과 같은 Phase에서** 테스트를 함께 작성한다(ROADMAP의 "인증 테스트" · "Todo 테스트" · "OAuth 테스트").
+- **Phase 10(전체 검증)에서는 새 테스트를 작성하지 않는다.** 전체 통과와 체크리스트 확인만 한다.
+- **컴파일 통과만으로 완료 처리하지 않는다.** 매 배치 경계에서 실제 기동 + 스모크 테스트를 한다 — 이 습관이 실제 버그를 반복해서 잡아냈다.
