@@ -1,6 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.31 · **최종 수정** 2026-09-04
+> **버전** 1.32 · **최종 수정** 2026-09-07
+> **v1.32 변경**: **Phase 12-6 검증 체크리스트 12항목을 실측 완료 처리했다.** 로컬 `local` 프로파일로 백엔드·프론트를 직접 기동하고 Claude in Chrome으로 회원가입→이미지 첨부→저장→확인/수정 화면 왕복을 검증했다(자동화가 이미 커버하는 크기·타입 거부, 타인 접근 404, 경로 탈출 차단은 `AttachmentIntegrationTest`·`LocalStorageServiceTest` 72건 통과로 갈음). 이 과정에서 **회귀 버그 1건을 발견해 수정**했다 — `TodoEditor.tsx`가 이미 정화+URL 주입이 끝난 content를 마운트 시 `sanitizeHtml()`로 재정화해, `src`가 지워지고 Tiptap 기본 Image 확장의 `img[src]` 파싱 규칙에 걸려 노드째 사라지는 문제였다(수정 화면 재진입마다 본문 이미지가 통째로 사라짐, 확인 화면은 재정화가 없어 무사했음). `todo-frontend` 커밋 `757c5a0`으로 수정. 별도로 `todo-backend`에는 첨부 API의 파라미터 오류(`token` 누락·경로 id 타입 불일치)가 500으로 새던 문제를 400으로 고친 커밋(`d63fbe5`)도 반영했다 — 이전 세션이 토큰 부족으로 커밋하지 못하고 남겨둔 변경을 이번에 테스트(72건 전체 통과) 후 커밋했다. 상세 근거는 아래 Phase 12-6 섹션. 세 저장소 `v1.1.0` 태그·원격 push는 보류 — 사용자 확인 후 진행한다.
 > **v1.31 변경**: **잘려 있던 Phase 11(AWS 배포)을 복원했다.** 11-3(HTTPS)이 `...상시 비용... (12KB 남음)`에서 문장 중간에 끊겨 있어 현 상태로는 착수가 불가능했다. 11-3을 완성하고 **11-4(Amplify)·11-5(연동 검증 + DoD 12항목)**를 작성했다. 같은 이유로 잘려 있던 `CLAUDE.md` 11~14장도 함께 복원했다(v1.14).
 > **아울러 v1.30의 판단을 정정한다** — 그때는 "유실이 아니라 처음부터 작성되지 않았다"고 적었으나 **틀렸다.** 이 문서 자체가 195행("프로파일별 `ddl-auto`는 `CLAUDE.md` 12장 표 참조")·198행("`.gitattributes`를 삭제하지 않는다, `CLAUDE.md` 13장")·353행("OAuth2는 MockMvc로 검증 불가, `CLAUDE.md` 14장")에서 **잘려나간 장을 번호와 내용까지 특정해 인용**하고 있다. 존재하지 않는 장을 그렇게 인용할 수는 없으므로, 원본에는 있었고 파일에 붙여넣는 과정에서 잘린 것이다. "최초 커밋부터 잘려 있었다"는 사실은 *언제 잘렸는지*만 말해줄 뿐 *원본에 있었는지*는 말해주지 않는데, 그것을 근거로 작성 여부를 단정한 것이 오류였다.
 > **v1.30 변경**: **Phase 12(이미지 첨부, 로컬 스토리지)와 Phase 13(S3 전환)을 신설**했다. `PRD.md` v1.11이 이미지 첨부를 MVP 범위로 편입(`TODO-17`·`TODO-18`)하고 `CLAUDE.md` v1.13이 스키마·API·정화 규칙을 확정한 데 따른 것이다. **번호와 실행 순서가 다르다** — 실행은 `12 → 11 → 13`이며, Phase 12는 로컬 디렉토리만 쓰므로 AWS 없이 지금 착수할 수 있고 Phase 13은 버킷·IAM이 필요해 Phase 11 완료가 선행 조건이다. 상세 지시서는 `docs/tiptap-image-upload-prompt.md`, 원본 프롬프트의 실측 검증 근거는 `docs/appendFileImage.md`. 함께 발견한 사실 하나를 기록해 둔다 — **이 문서와 `CLAUDE.md`가 파일 자체로 잘려 있다**(각각 Phase 11-3, 11장 중간). `(NKB 남음)` 마커가 최초 커밋부터 저장돼 있어 git 복구가 불가능하다. ~~유실이 아니라 처음부터 작성되지 않은 것이다.~~ **(v1.31에서 이 판단을 정정했다 — 위 v1.31 항목 참조. 다른 문서의 인용을 근거로 원본에는 존재했음이 확인됐고, v1.31에서 복원을 마쳤다.)**
@@ -47,7 +48,7 @@
 | 9     | 인터랙션 다듬기            | frontend | ✅   |
 | 10    | 전체 검증                  | 전체     | ✅   |
 | 11    | AWS 배포                   | 전체     | ⬜   |
-| 12    | 이미지 첨부 (로컬 스토리지) | 전체     | ⬜   |
+| 12    | 이미지 첨부 (로컬 스토리지) | 전체     | ✅   |
 | 13    | S3 전환                    | backend  | ⬜   |
 
 ⬜ 대기 · 🟡 진행중 · ✅ 완료
@@ -795,20 +796,33 @@
 
 ### 12-6. 검증 체크리스트
 
-- [ ] 서버 기동 시 `todo-project/upload` 자동 생성
-- [ ] `upload/todos/{userId}/{yyyy}/{MM}/{uuid}.{ext}`에 파일 생성
-- [ ] `attachments`에 `status=TEMP` 행 생성
-- [ ] 할 일 저장 후 `status=LINKED` + `todo_id` 채워짐
-- [ ] **저장된 HTML에 `src`가 없고 `data-attachment-id`만 있음 (DB 직접 확인)**
-- [ ] 확인 화면·수정 화면 양쪽에서 이미지 정상 표시
-- [ ] 본문에서 이미지 삭제 후 저장 → `deleted_at` 채워지고 **파일은 잔존**
-- [ ] 5MB 초과·`.exe` 업로드 거부
-- [ ] 타인 `attachmentId` 조회 시 **404** (403 아님)
-- [ ] `storageKey`에 `../` 주입 차단
-- [ ] **아무것도 고치지 않고 수정 화면을 나갈 때 이탈 확인창이 뜨지 않음**
-- [ ] `upload/`가 `git status`에 잡히지 않음
+> **2026-09-07 실측 완료.** 로컬 `local` 프로파일로 백엔드·프론트를 직접 기동하고 Claude in Chrome으로
+> 실제 회원가입 → 이미지 첨부 → 저장 → 확인/수정 화면 왕복까지 전 과정을 확인했다. 파일 크기·타입
+> 거부, 타인 접근 404, 경로 탈출 차단은 `AttachmentIntegrationTest`·`LocalStorageServiceTest`가 이미
+> 자동화로 커버하고 있어(72개 테스트 전부 통과) 브라우저로는 나머지 항목만 재확인했다.
+>
+> **이 과정에서 회귀 버그 1건을 발견해 즉시 수정했다** — `TodoEditor.tsx`가 `useRenderedContent`로
+> 이미 정화+URL 주입이 끝난 content를 마운트 시 `sanitizeHtml()`로 다시 한번 정화하고 있었다. `src`는
+> DOMPurify `ALLOWED_ATTR`에 없어 재정화 때 지워지고, `src` 없는 `img`는 Tiptap 기본 Image 확장의
+> 파싱 규칙(`img[src]`)에 걸려 노드 자체가 사라진다 — 결과적으로 **수정 화면에 재진입할 때마다 본문
+> 이미지가 통째로 사라지는 버그**였다(확인 화면은 `dangerouslySetInnerHTML`이라 재정화가 없어 멀쩡했음).
+> `sanitizeHtml` 재호출을 제거해 수정했다(`todo-frontend` 커밋 `757c5a0`). 자동화 테스트로는 잡히지
+> 않고 실제 화면 왕복에서만 드러나는 종류의 결함이었다 — Phase 8·9에서도 반복된 교훈.
 
-**태그**: 통과 시 세 저장소에 `v1.1.0`
+- [x] 서버 기동 시 `todo-project/upload` 자동 생성 — `LocalStorageService`의 `@PostConstruct`가 `Files.createDirectories()` 호출, 코드 확인 + 실제 부팅 로그로 확인
+- [x] `upload/todos/{userId}/{yyyy}/{MM}/{uuid}.{ext}`에 파일 생성 — `upload/todos/18/2026/09/94c21bef-....png` 등 실제 파일 확인
+- [x] `attachments`에 `status=TEMP` 행 생성 — presign 직후 DB 확인
+- [x] 할 일 저장 후 `status=LINKED` + `todo_id` 채워짐 — DB 직접 확인(`id=3, todo_id=10163, status=LINKED`)
+- [x] **저장된 HTML에 `src`가 없고 `data-attachment-id`만 있음 (DB 직접 확인)** — `<img alt="test-image.png" data-attachment-id="3">` 확인
+- [x] 확인 화면·수정 화면 양쪽에서 이미지 정상 표시 — 최초 실측에서 수정 화면만 실패(위 버그) → 수정 후 재확인 통과
+- [x] 본문에서 이미지 삭제 후 저장 → `deleted_at` 채워지고 **파일은 잔존** — DB `deleted_at` 채워짐 + 디스크 파일 존재 동시 확인
+- [x] 5MB 초과·`.exe` 업로드 거부 — `LocalStorageServiceTest`(매직바이트·크기 제한) 자동화로 커버, 테스트 통과
+- [x] 타인 `attachmentId` 조회 시 **404** (403 아님) — `AttachmentIntegrationTest` 자동화로 커버, 테스트 통과
+- [x] `storageKey`에 `../` 주입 차단 — `LocalStorageServiceTest`(경로 탈출 방어) 자동화로 커버, 테스트 통과
+- [x] **아무것도 고치지 않고 수정 화면을 나갈 때 이탈 확인창이 뜨지 않음** — `window.confirm`을 스텁으로 감시, 미호출 확인
+- [x] `upload/`가 `git status`에 잡히지 않음 — 루트 `.gitignore` 확인
+
+**태그**: 통과 시 세 저장소에 `v1.1.0` — 검증 통과, 태그·푸시는 사용자 확인 후 진행
 
 ---
 
