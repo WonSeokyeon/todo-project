@@ -49,3 +49,6 @@ desktop.ini
 
 # SSH/PuTTY 개인 키 (EC2 접속용, 절대 커밋 금지)
 *.ppk
+
+# DB 백업 파일 (실사용자 데이터 포함 가능, 절대 커밋 금지)
+*.backup
