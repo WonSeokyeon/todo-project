@@ -681,6 +681,8 @@
 - EC2 보안그룹 인바운드: **80과 443을 공개**, 22는 본인 IP로 제한, 8080은 외부에 열지 않는다
   > ⚠️ **80을 닫으면 안 된다.** 11-3의 `80 → 443` 리다이렉트가 도달 불가능해지고, **certbot의 HTTP-01 챌린지도 실패해 인증서 발급 자체가 안 된다.** 80은 열되 nginx가 443으로 리다이렉트만 하도록 구성한다 (평문으로 서비스하지 않는다)
 
+> **systemd 배포 파일 준비 완료(2026-09-09)**: `todo-backend/scripts/deploy/`에 `install.sh`(최초 1회 환경 구성)·`redeploy.sh`(재배포)·`todolist.service`·`todolist.conf`(JVM 옵션)·`todolist.env.example`이 있다. **첫 배포 라운드는 nginx 없이 8080을 보안그룹에서 제한적으로(본인 IP) 열어 백엔드만 먼저 검증**했다 — 위 "80/443 공개, 8080 미노출" 보안그룹 구성은 11-3(nginx) 도입 시점 기준이다. nginx가 없는 동안은 Google OAuth2와 Refresh 쿠키(`Secure`)가 원천적으로 동작하지 않는다(HTTPS 필요) — 버그가 아니라 알려진 한계이며, `todolist.env`의 `COOKIE_SECURE=false`/`COOKIE_SAME_SITE=Lax`로 임시 검증한다.
+
 ### 11-3. HTTPS (방식 확정: nginx + certbot)
 
 개인 프로젝트 규모이므로 **EC2 한 대에 nginx 리버스 프록시 + Let's Encrypt**로 간다. ALB + ACM은 관리가 편하지만 **상시 비용이 발생**한다 — ALB는 트래픽이 없어도 시간당 요금이 붙어, 개인 프로젝트에서는 EC2 인스턴스 비용보다 커지기 쉽다.
