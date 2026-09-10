@@ -1,6 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.33 · **최종 수정** 2026-09-07
+> **버전** 1.34 · **최종 수정** 2026-09-10
+> **v1.34 변경**: **11-3(HTTPS) 확정 방식을 nginx+certbot에서 CloudFront로 정정했다.** 실제로는 사용자가 EC2 백엔드(:8080) 앞에 CloudFront를 HTTPS 리버스 프록시로 붙이는 방식으로 진행했다(2026-09-10 확인) — nginx+certbot으로 문서화된 계획과 다른 경로다. 11-3을 CloudFront 기준으로 다시 쓰고 nginx 구성은 미채택 대안으로 남겨뒀다. 11-2의 보안그룹 서술(80/443 공개 전제)과 11-4의 `NEXT_PUBLIC_API_BASE_URL` 예시도 CloudFront 기준으로 맞췄다. **CloudFront 쪽 콘솔 설정(캐시 정책·오리진 요청 정책·`X-Forwarded-Proto` 헤더 주입)이 실제로 올바른지는 이번 갱신 시점에 검증하지 않았다** — 11-5 DoD에 확인 항목 4개를 추가했다. 코드 변경 없음, 문서만 정정.
 > **v1.33 변경**: **Phase 13(S3 전환) 착수, 🟡로 표시.** Phase 11(AWS 배포) 완료가 선행 조건이었으나, 사용자가 버킷(`todolist-dev-tjrdus110`, `ap-northeast-2`)과 IAM 정책을 이미 준비해둔 상태라 코드 계약(`StorageService` 인터페이스, Phase 12에서 확정)만 있으면 먼저 구현할 수 있었다. `S3StorageService`·`S3Config`를 구현하고(`todo-backend` `feature/s3-storage` 브랜치, 커밋 `f379c4c`) 로컬에서 `STORAGE_TYPE=s3`로 전체 왕복(업로드→저장→확인/수정 화면 렌더)을 실측했다 — **프론트엔드 코드 변경 0줄**로 통과해 Phase 12에서 만든 추상화가 의도대로 동작함을 확인했다. AWS SDK v2 아티팩트 하나(`s3-presigner`)가 실제로는 존재하지 않아(Maven Central 404) `s3` 모듈에 포함된 것으로 정정한 사례도 있었다(공식 문서 확인 절차가 즉시 오류를 잡아냄). **다만 검증 중 버킷이 서명 없는 익명 요청에도 200을 반환하는 심각한 문제를 발견**했고, 사용자가 콘솔에서 확인한 설정(퍼블릭 액세스 차단 전체 켜짐)과 실제 동작이 불일치해 원인을 이 세션에서 특정하지 못했다 — 원인 파악 전까지 `v1.2.0` 태그와 실제 운영 전환을 보류한다. 상세는 아래 Phase 13-3 섹션.
 > **v1.32 변경**: **Phase 12-6 검증 체크리스트 12항목을 실측 완료 처리했다.** 로컬 `local` 프로파일로 백엔드·프론트를 직접 기동하고 Claude in Chrome으로 회원가입→이미지 첨부→저장→확인/수정 화면 왕복을 검증했다(자동화가 이미 커버하는 크기·타입 거부, 타인 접근 404, 경로 탈출 차단은 `AttachmentIntegrationTest`·`LocalStorageServiceTest` 72건 통과로 갈음). 이 과정에서 **회귀 버그 1건을 발견해 수정**했다 — `TodoEditor.tsx`가 이미 정화+URL 주입이 끝난 content를 마운트 시 `sanitizeHtml()`로 재정화해, `src`가 지워지고 Tiptap 기본 Image 확장의 `img[src]` 파싱 규칙에 걸려 노드째 사라지는 문제였다(수정 화면 재진입마다 본문 이미지가 통째로 사라짐, 확인 화면은 재정화가 없어 무사했음). `todo-frontend` 커밋 `757c5a0`으로 수정. 별도로 `todo-backend`에는 첨부 API의 파라미터 오류(`token` 누락·경로 id 타입 불일치)가 500으로 새던 문제를 400으로 고친 커밋(`d63fbe5`)도 반영했다 — 이전 세션이 토큰 부족으로 커밋하지 못하고 남겨둔 변경을 이번에 테스트(72건 전체 통과) 후 커밋했다. 상세 근거는 아래 Phase 12-6 섹션. 세 저장소 `v1.1.0` 태그·원격 push는 보류 — 사용자 확인 후 진행한다.
 > **v1.31 변경**: **잘려 있던 Phase 11(AWS 배포)을 복원했다.** 11-3(HTTPS)이 `...상시 비용... (12KB 남음)`에서 문장 중간에 끊겨 있어 현 상태로는 착수가 불가능했다. 11-3을 완성하고 **11-4(Amplify)·11-5(연동 검증 + DoD 12항목)**를 작성했다. 같은 이유로 잘려 있던 `CLAUDE.md` 11~14장도 함께 복원했다(v1.14).
@@ -678,26 +679,40 @@
 - `./mvnw package`로 jar 생성 후 전송
 - **systemd 서비스로 등록** (자동 재시작, 부팅 시 기동)
 - 환경변수는 systemd `EnvironmentFile`로 주입 (`.env` 커밋 금지)
-- EC2 보안그룹 인바운드: **80과 443을 공개**, 22는 본인 IP로 제한, 8080은 외부에 열지 않는다
-  > ⚠️ **80을 닫으면 안 된다.** 11-3의 `80 → 443` 리다이렉트가 도달 불가능해지고, **certbot의 HTTP-01 챌린지도 실패해 인증서 발급 자체가 안 된다.** 80은 열되 nginx가 443으로 리다이렉트만 하도록 구성한다 (평문으로 서비스하지 않는다)
+- EC2 보안그룹 인바운드: **8080을 공개**(CloudFront가 오리진으로 접속하는 포트), 22는 본인 IP로 제한한다. HTTPS 종단은 EC2가 아니라 CloudFront가 담당하므로 80·443은 열지 않는다(11-3 참조).
+  > ⚠️ **가능하면 8080을 CloudFront의 공개 IP 대역(AWS `ip-ranges.json`의 `CLOUDFRONT` 서비스)으로 제한한다.** 전체 공개로 두면 EC2 IP를 직접 아는 사람이 CloudFront를 우회해 평문 HTTP로 접근할 수 있다 — "CloudFront를 거쳐야만 HTTPS"라는 전제가 강제되지 않는다는 뜻이다. 개인 프로젝트 규모라 생략 가능하지만, 생략 시 이 한계는 인지하고 있어야 한다.
 
-> **systemd 배포 파일 준비 완료(2026-09-09)**: `todo-backend/scripts/deploy/`에 `install.sh`(최초 1회 환경 구성)·`redeploy.sh`(재배포)·`todolist.service`·`todolist.conf`(JVM 옵션)·`todolist.env.example`이 있다. **첫 배포 라운드는 nginx 없이 8080을 보안그룹에서 제한적으로(본인 IP) 열어 백엔드만 먼저 검증**했다 — 위 "80/443 공개, 8080 미노출" 보안그룹 구성은 11-3(nginx) 도입 시점 기준이다. nginx가 없는 동안은 Google OAuth2와 Refresh 쿠키(`Secure`)가 원천적으로 동작하지 않는다(HTTPS 필요) — 버그가 아니라 알려진 한계이며, `todolist.env`의 `COOKIE_SECURE=false`/`COOKIE_SAME_SITE=Lax`로 임시 검증한다.
+> **systemd 배포 파일 준비 완료(2026-09-09)**: `todo-backend/scripts/deploy/`에 `install.sh`(최초 1회 환경 구성)·`redeploy.sh`(재배포)·`todolist.service`·`todolist.conf`(JVM 옵션)·`todolist.env.example`이 있다. **첫 배포 라운드는 HTTPS 종단 없이 8080을 보안그룹에서 제한적으로(본인 IP) 열어 백엔드만 먼저 검증**했다. HTTPS가 없는 동안은 Google OAuth2와 Refresh 쿠키(`Secure`)가 원천적으로 동작하지 않는다(HTTPS 필요) — 버그가 아니라 알려진 한계이며, `todolist.env`의 `COOKIE_SECURE=false`/`COOKIE_SAME_SITE=Lax`로 임시 검증한다. **(v1.34) HTTPS 방식은 이후 nginx+certbot이 아니라 CloudFront로 확정됐다(아래 11-3 참조)** — CloudFront 쪽 설정(캐시·헤더 전달)이 검증되면 위 두 임시값을 지우고, 보안그룹도 위 새 기준(8080 공개, 80·443 미사용)으로 맞춘다.
 
-### 11-3. HTTPS (방식 확정: nginx + certbot)
+### 11-3. HTTPS (방식 확정: CloudFront)
 
-개인 프로젝트 규모이므로 **EC2 한 대에 nginx 리버스 프록시 + Let's Encrypt**로 간다. ALB + ACM은 관리가 편하지만 **상시 비용이 발생**한다 — ALB는 트래픽이 없어도 시간당 요금이 붙어, 개인 프로젝트에서는 EC2 인스턴스 비용보다 커지기 쉽다.
+> **v1.34 정정**: 이 절은 원래 nginx + certbot으로 확정돼 있었으나, 실제로는 **CloudFront를 EC2 백엔드(:8080) 앞 HTTPS 리버스 프록시로 쓰는 방식**으로 진행됐다(2026-09-10 확인). 서버에서 인증서 갱신을 직접 관리하지 않아도 되고, t2.micro에 nginx 프로세스를 추가로 얹지 않아도 된다는 이점이 있다. 아래는 CloudFront 기준으로 다시 쓴 절차이며, **콘솔 설정값이 실제로 이렇게 되어 있는지는 이 문서 갱신 시점에 검증되지 않았다** — 다음에 이 Phase를 다루면 아래부터 재확인한다.
 
-**nginx 구성**
+**CloudFront 배포 구성**
+
+- 오리진: EC2 퍼블릭 IP(또는 도메인), 포트 `8080`. Origin Protocol Policy는 **HTTP Only**(오리진에 별도 인증서를 얹지 않는다 — TLS 종단은 CloudFront가 담당).
+- Viewer Protocol Policy: **Redirect HTTP to HTTPS**(또는 HTTPS Only).
+- **캐시 정책은 AWS 관리형 `CachingDisabled`로 설정한다.** 기본 캐시 정책을 쓰면 `GET /api/v1/todos`처럼 사용자마다 다른 응답이 캐시되어 **다른 사용자에게 노출되는 심각한 문제**로 이어질 수 있다.
+- **오리진 요청 정책은 `Authorization` 헤더·`Cookie`·쿼리 스트링을 전부 오리진에 전달하도록 설정한다**(AWS 관리형 `AllViewer`가 가장 간단하다). 빠지면 로그인 이후 모든 인증 요청이 401, 검색·페이지네이션 쿼리 파라미터 무시, 첨부 조회 서명 토큰(`?token=`) 전달 안 됨 등으로 산발적으로 깨진다.
+  > ⚠️ **CloudFront는 기본적으로 `X-Forwarded-Proto`를 오리진에 전달하지 않는다.** 대신 `CloudFront-Forwarded-Proto`라는 자체 헤더를 보낸다([AWS 공식 확인](https://repost.aws/questions/QUtruGwGKVQiCHr5dPN87CFw/why-cloudfront-removes-and-or-doesn-t-add-the-x-forwarded-proto-header)). Spring Security의 OAuth2Client가 `redirect_uri`를 요청 스킴 기준으로 생성하므로, 이게 안 맞으면 nginx 방식과 같은 종류의 함정인 `redirect_uri_mismatch`가 난다. **오리진 요청 정책에 `X-Forwarded-Proto: https`를 고정값으로 주입하는 커스텀 헤더를 추가**하거나 CloudFront Function으로 삽입한다.
+- 업로드 크기 — 첨부 기능(Phase 12)이 5MB 파일을 PUT으로 받는다. CloudFront 자체 요청 크기 한도는 이보다 크므로 파일 크기는 문제없지만, **PUT 업로드 경로(`/api/v1/attachments/{id}/upload`)가 캐시·오리진 요청 정책에서 제외되지 않았는지 별도로 확인한다** — 캐싱 대상이 되면 두 번째 업로드부터 오리진에 도달하지 않을 수 있다.
+
+**함께 갱신할 곳**
+
+- Google Cloud Console의 승인된 리디렉션 URI를 CloudFront 도메인 기준(`https://<cloudfront-domain>/login/oauth2/code/google`)으로 등록한다.
+- 프론트(Amplify)의 `NEXT_PUBLIC_API_BASE_URL`을 CloudFront 도메인으로 설정한다(11-4 참조) — EC2 IP나 `:8080`을 직접 가리키면 CloudFront를 거치지 않아 이 절 전체가 무의미해진다.
+- `todolist.env`의 `COOKIE_SECURE=false`/`COOKIE_SAME_SITE=Lax` 임시값은 위 오리진 요청 정책이 `Cookie`를 정상 전달함을 확인한 뒤 제거한다 — 제거하면 `application-prod.properties` 기본값(`true`/`None`)으로 복귀한다.
+
+> nginx + certbot도 여전히 유효한 대안이다(ALB보다 저렴, EC2 한 대로 충분). CloudFront 비용이나 캐시 동작이 이 프로젝트 규모에 맞지 않다고 판단되면 이 절을 nginx 기준으로 되돌릴 수 있다 — 그때는 EC2 보안그룹을 "80·443 공개, 8080 비공개"로 되돌리고 아래 구성을 참고한다.
+
+**(참고, 미채택) nginx 구성**
 
 - `80` → `443` 영구 리다이렉트만 담당한다. **평문으로 서비스하지 않는다.**
 - `443`에서 `proxy_pass http://127.0.0.1:8080`으로 넘긴다.
 - `proxy_set_header`로 `Host`·`X-Real-IP`·`X-Forwarded-For`·**`X-Forwarded-Proto https`**를 넘긴다.
   > ⚠️ **`X-Forwarded-Proto`를 빠뜨리면 쿠키의 `Secure` 속성 판단과 리다이렉트 URL 생성이 어긋난다.** Spring이 요청을 http로 인식해 OAuth2 리다이렉트가 `http://`로 나가고, 구글 콘솔에 등록한 `https://` URI와 불일치해 `redirect_uri_mismatch`가 난다.
 - 업로드 크기 — 첨부 기능(Phase 12)이 5MB 파일을 PUT으로 받으므로 **`client_max_body_size`를 6MB 이상**으로 올린다. 기본값 1MB면 `413`으로 막힌다.
-
-**certbot**
-
-- `certbot --nginx -d api.example.com`으로 발급. **80이 열려 있어야 HTTP-01 챌린지가 성공한다**(11-2 경고 참조).
+- `certbot --nginx -d api.example.com`으로 발급. **80이 열려 있어야 HTTP-01 챌린지가 성공한다.**
 - 자동 갱신은 설치 시 등록되는 `systemd timer`(`certbot.timer`)가 담당한다. `systemctl list-timers | grep certbot`으로 확인한다.
 - `certbot renew --dry-run`으로 갱신 경로를 **미리 한 번 검증**한다. 90일 뒤에 실패를 발견하면 서비스가 그대로 중단된다.
 
@@ -705,7 +720,8 @@
 
 - GitHub 저장소(`todo-frontend`) 연결, **`main` 브랜치**를 빌드 대상으로 지정
 - 빌드 설정은 기본값(`next build`)을 쓴다 — **`distDir`을 설정하지 않는다**(출력은 `.next`여야 한다)
-- 환경변수 **`NEXT_PUBLIC_API_BASE_URL`**을 API 도메인(`https://api.example.com`)으로 설정
+- 환경변수 **`NEXT_PUBLIC_API_BASE_URL`**을 API 도메인으로 설정
+  > **(v1.34)** 이 프로젝트는 API 앞에 별도 Route 53 커스텀 도메인을 연결하지 않는 한, API 도메인이 `https://api.example.com`이 아니라 **CloudFront 배포 도메인**(`https://<cloudfront-id>.cloudfront.net` 형태)이다 — 11-3 참조. EC2 IP나 `:8080`을 직접 넣지 않는다.
 - Node 런타임 **20 이상** (Amplify는 14·16·18 지원을 종료했다)
 - 커스텀 도메인 연결 후 인증서 발급 대기
 
@@ -719,14 +735,18 @@
 
 - [ ] **`FRONTEND_URL`과 `CORS_ALLOWED_ORIGINS`를 분리해서 설정했는가** — 겸용하면 `OAuth2SuccessHandler`가 `https://a.com,https://b.com/oauth/callback?token=...`이라는 깨진 주소로 302를 보낸다. 로컬은 단일값이라 Phase 5를 통과하고 **여기서야 발현한다** (`CLAUDE.md` 6장)
 - [ ] **Refresh Token 쿠키가 `SameSite=None; Secure`로 나가는가** — Amplify 도메인과 API 도메인이 cross-site라 `Lax`면 브라우저가 쿠키를 전송하지 않아 **자동 로그인 연장이 통째로 실패**한다. 로컬은 same-site라 `Lax`로 동작했다
-- [ ] **구글 콘솔의 승인된 리다이렉트 URI에 운영 도메인이 등록됐는가** — `https://api.example.com/login/oauth2/code/google`. 누락 시 `redirect_uri_mismatch`
+- [ ] **구글 콘솔의 승인된 리다이렉트 URI에 운영 도메인이 등록됐는가** — `https://<cloudfront-domain>/login/oauth2/code/google`(CloudFront 도메인 기준, 11-3 참조). 누락 시 `redirect_uri_mismatch`
 - [ ] `CORS_ALLOWED_ORIGINS`에 Amplify 브랜치 도메인과 커스텀 도메인이 **둘 다** 들어 있는가
+- [ ] **(v1.34 추가) CloudFront 캐시 정책이 `CachingDisabled`인가** — 기본 정책이면 사용자별 동적 GET 응답이 캐시되어 다른 사용자에게 노출될 수 있다(11-3 참조)
+- [ ] **(v1.34 추가) CloudFront 오리진 요청 정책이 `Authorization`·`Cookie`·쿼리 스트링을 오리진에 전달하는가** — 안 되면 로그인 후 모든 인증 요청 401, 검색/페이지네이션 무시, 첨부 서명 토큰 미전달
+- [ ] **(v1.34 추가) CloudFront가 `X-Forwarded-Proto: https`를 오리진에 전달하도록 구성됐는가** — 기본으로는 전달되지 않는다(11-3 참조), 빠지면 `redirect_uri_mismatch` 위험
+- [ ] **(v1.34 추가) Amplify의 `NEXT_PUBLIC_API_BASE_URL`이 CloudFront 도메인을 가리키는가** — EC2 IP를 직접 가리키면 CloudFront를 우회하게 된다
 - [ ] **RDS 스키마가 적용됐고 `ddl-auto=validate`로 기동되는가** (`CLAUDE.md` 4장·12장)
 - [ ] **타임스탬프가 UTC로 저장되는가** — 로컬 KST ↔ RDS UTC 환경 차이. `created_at`을 DB에서 직접 조회해 실제 시각과 대조한다
 - [ ] `/actuator/health`만 열려 있고 나머지 `/actuator/**`는 막혀 있는가
-- [ ] EC2 보안그룹에서 **8080이 외부에 노출되지 않고**, 22가 본인 IP로 제한됐는가
+- [ ] **(v1.34 정정)** EC2 보안그룹에서 22가 본인 IP로 제한됐는가. 8080은 CloudFront 도입 이후 오리진 접속용으로 공개돼 있는 것이 정상이다(11-2·11-3 참조) — 가능하면 CloudFront IP 대역으로 제한됐는지도 확인한다
 - [ ] RDS가 프라이빗 서브넷에 있고 퍼블릭 액세스가 비활성인가
-- [ ] **첨부 업로드가 운영에서 동작하는가** (Phase 12를 먼저 실행하므로 해당) — `upload/` 디렉토리 생성·쓰기 권한, nginx `client_max_body_size`
+- [ ] **첨부 업로드가 운영에서 동작하는가** (Phase 12를 먼저 실행하므로 해당) — `upload/` 디렉토리 생성·쓰기 권한, 업로드 경로가 CloudFront 캐시/오리진 요청 정책에서 제대로 통과되는지(11-3 참조)
 - [ ] 회원가입 → 로그인 → 할 일 생성 → 이미지 첨부 → 완료 토글 → 삭제까지 **운영 도메인에서 전 흐름 왕복**
 - [ ] 30분 뒤 Access Token 만료 시 자동 재발급이 동작하는가 (또는 만료된 토큰을 심어 재현)
 
