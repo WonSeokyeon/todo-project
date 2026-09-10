@@ -1,6 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.34 · **최종 수정** 2026-09-10
+> **버전** 1.35 · **최종 수정** 2026-09-10
+> **v1.35 변경**: **11-5 DoD 검증 라운드 — v1.34가 미검증으로 남겨뒀던 CloudFront 콘솔 설정 4항목 + 구글 로그인 + 첨부 업로드를 실제로 배포·재현하며 확인했다.** 이 과정에서 코드 버그 두 개를 실제로 발견해 수정했다(둘 다 `todo-backend`에 반영, push는 안 함): (1) `GlobalExceptionHandler`의 catch-all이 5xx를 로그 없이 삼키고 있었다(`log.error` 추가, 커밋 `1bdd743`) — 이게 없었으면 아래 (2)의 원인도 못 찾았을 것이다. (2) OAuth2 `redirect_uri`가 `http://`로 잘못 생성되던 버그 — CloudFront는 `X-Forwarded-Proto`를 오리진에 절대 전달하지 않고, `CloudFront-Forwarded-Proto`도 관리형 `CachingDisabled` 캐시 정책에서는 받을 수 없음을 AWS 공식 문서로 확정한 뒤(11-5의 해당 체크박스가 알려주던 방법 자체가 이 배포에서 불가능했다), `redirect-uri`를 아예 `https`로 하드코딩해 해결(커밋 `f940c30`). 여기에 더해 **별도로 사용자가 구글 콘솔에서 실제로 쓰이는 것과 다른 OAuth 클라이언트를 편집하고 있었던 실수**도 겹쳐 있어, 두 원인을 각각 잡고 나서야 최종 통과했다. S3 IAM Role(`todolist-ec2-s3-role`)도 EC2 인스턴스에 실제로 연결되지 않았던 게 확인돼 연결 후 첨부 업로드까지 정상 동작을 확인했다. 상세 경위는 `[[cloudfront-https-deviation]]` 메모리 참조. 11-5의 회원가입→로그인→할 일 생성→...→삭제 전 흐름 중 회원가입·이미지 첨부만 이번에 재확인했고, 나머지(할 일 생성·토글·삭제)는 Phase 8~9에서 이미 검증됐다고 보고 재확인하지 않았다.
 > **v1.34 변경**: **11-3(HTTPS) 확정 방식을 nginx+certbot에서 CloudFront로 정정했다.** 실제로는 사용자가 EC2 백엔드(:8080) 앞에 CloudFront를 HTTPS 리버스 프록시로 붙이는 방식으로 진행했다(2026-09-10 확인) — nginx+certbot으로 문서화된 계획과 다른 경로다. 11-3을 CloudFront 기준으로 다시 쓰고 nginx 구성은 미채택 대안으로 남겨뒀다. 11-2의 보안그룹 서술(80/443 공개 전제)과 11-4의 `NEXT_PUBLIC_API_BASE_URL` 예시도 CloudFront 기준으로 맞췄다. **CloudFront 쪽 콘솔 설정(캐시 정책·오리진 요청 정책·`X-Forwarded-Proto` 헤더 주입)이 실제로 올바른지는 이번 갱신 시점에 검증하지 않았다** — 11-5 DoD에 확인 항목 4개를 추가했다. 코드 변경 없음, 문서만 정정.
 > **v1.33 변경**: **Phase 13(S3 전환) 착수, 🟡로 표시.** Phase 11(AWS 배포) 완료가 선행 조건이었으나, 사용자가 버킷(`todolist-dev-tjrdus110`, `ap-northeast-2`)과 IAM 정책을 이미 준비해둔 상태라 코드 계약(`StorageService` 인터페이스, Phase 12에서 확정)만 있으면 먼저 구현할 수 있었다. `S3StorageService`·`S3Config`를 구현하고(`todo-backend` `feature/s3-storage` 브랜치, 커밋 `f379c4c`) 로컬에서 `STORAGE_TYPE=s3`로 전체 왕복(업로드→저장→확인/수정 화면 렌더)을 실측했다 — **프론트엔드 코드 변경 0줄**로 통과해 Phase 12에서 만든 추상화가 의도대로 동작함을 확인했다. AWS SDK v2 아티팩트 하나(`s3-presigner`)가 실제로는 존재하지 않아(Maven Central 404) `s3` 모듈에 포함된 것으로 정정한 사례도 있었다(공식 문서 확인 절차가 즉시 오류를 잡아냄). **다만 검증 중 버킷이 서명 없는 익명 요청에도 200을 반환하는 심각한 문제를 발견**했고, 사용자가 콘솔에서 확인한 설정(퍼블릭 액세스 차단 전체 켜짐)과 실제 동작이 불일치해 원인을 이 세션에서 특정하지 못했다 — 원인 파악 전까지 `v1.2.0` 태그와 실제 운영 전환을 보류한다. 상세는 아래 Phase 13-3 섹션.
 > **v1.32 변경**: **Phase 12-6 검증 체크리스트 12항목을 실측 완료 처리했다.** 로컬 `local` 프로파일로 백엔드·프론트를 직접 기동하고 Claude in Chrome으로 회원가입→이미지 첨부→저장→확인/수정 화면 왕복을 검증했다(자동화가 이미 커버하는 크기·타입 거부, 타인 접근 404, 경로 탈출 차단은 `AttachmentIntegrationTest`·`LocalStorageServiceTest` 72건 통과로 갈음). 이 과정에서 **회귀 버그 1건을 발견해 수정**했다 — `TodoEditor.tsx`가 이미 정화+URL 주입이 끝난 content를 마운트 시 `sanitizeHtml()`로 재정화해, `src`가 지워지고 Tiptap 기본 Image 확장의 `img[src]` 파싱 규칙에 걸려 노드째 사라지는 문제였다(수정 화면 재진입마다 본문 이미지가 통째로 사라짐, 확인 화면은 재정화가 없어 무사했음). `todo-frontend` 커밋 `757c5a0`으로 수정. 별도로 `todo-backend`에는 첨부 API의 파라미터 오류(`token` 누락·경로 id 타입 불일치)가 500으로 새던 문제를 400으로 고친 커밋(`d63fbe5`)도 반영했다 — 이전 세션이 토큰 부족으로 커밋하지 못하고 남겨둔 변경을 이번에 테스트(72건 전체 통과) 후 커밋했다. 상세 근거는 아래 Phase 12-6 섹션. 세 저장소 `v1.1.0` 태그·원격 push는 보류 — 사용자 확인 후 진행한다.
@@ -735,19 +736,22 @@
 
 - [ ] **`FRONTEND_URL`과 `CORS_ALLOWED_ORIGINS`를 분리해서 설정했는가** — 겸용하면 `OAuth2SuccessHandler`가 `https://a.com,https://b.com/oauth/callback?token=...`이라는 깨진 주소로 302를 보낸다. 로컬은 단일값이라 Phase 5를 통과하고 **여기서야 발현한다** (`CLAUDE.md` 6장)
 - [ ] **Refresh Token 쿠키가 `SameSite=None; Secure`로 나가는가** — Amplify 도메인과 API 도메인이 cross-site라 `Lax`면 브라우저가 쿠키를 전송하지 않아 **자동 로그인 연장이 통째로 실패**한다. 로컬은 same-site라 `Lax`로 동작했다
-- [ ] **구글 콘솔의 승인된 리다이렉트 URI에 운영 도메인이 등록됐는가** — `https://<cloudfront-domain>/login/oauth2/code/google`(CloudFront 도메인 기준, 11-3 참조). 누락 시 `redirect_uri_mismatch`
+- [x] **구글 콘솔의 승인된 리다이렉트 URI에 운영 도메인이 등록됐는가** — `https://<cloudfront-domain>/login/oauth2/code/google`(CloudFront 도메인 기준, 11-3 참조). 누락 시 `redirect_uri_mismatch`
+  > **(v1.35, 2026-09-10 실측)** 실제로 두 가지 원인이 겹쳐 있었다 — ① 백엔드가 스킴을 `http://`로 잘못 생성하던 진짜 버그, ② 사용자가 구글 콘솔에서 실제 사용 중인 것과 **다른 OAuth 클라이언트**를 편집하고 있었던 실수. ①은 `redirect-uri`를 `https`로 직접 고정해 해결(아래 11-3 참조), ②는 올바른 클라이언트에 재등록해 해결. 재현 시 **`GOOGLE_CLIENT_ID`와 콘솔에서 편집 중인 클라이언트 ID가 일치하는지부터 확인**할 것 — 여기서 가장 많은 시간이 소모됐다.
 - [ ] `CORS_ALLOWED_ORIGINS`에 Amplify 브랜치 도메인과 커스텀 도메인이 **둘 다** 들어 있는가
-- [ ] **(v1.34 추가) CloudFront 캐시 정책이 `CachingDisabled`인가** — 기본 정책이면 사용자별 동적 GET 응답이 캐시되어 다른 사용자에게 노출될 수 있다(11-3 참조)
-- [ ] **(v1.34 추가) CloudFront 오리진 요청 정책이 `Authorization`·`Cookie`·쿼리 스트링을 오리진에 전달하는가** — 안 되면 로그인 후 모든 인증 요청 401, 검색/페이지네이션 무시, 첨부 서명 토큰 미전달
-- [ ] **(v1.34 추가) CloudFront가 `X-Forwarded-Proto: https`를 오리진에 전달하도록 구성됐는가** — 기본으로는 전달되지 않는다(11-3 참조), 빠지면 `redirect_uri_mismatch` 위험
-- [ ] **(v1.34 추가) Amplify의 `NEXT_PUBLIC_API_BASE_URL`이 CloudFront 도메인을 가리키는가** — EC2 IP를 직접 가리키면 CloudFront를 우회하게 된다
+- [x] **(v1.34 추가) CloudFront 캐시 정책이 `CachingDisabled`인가** — 기본 정책이면 사용자별 동적 GET 응답이 캐시되어 다른 사용자에게 노출될 수 있다(11-3 참조) — **(v1.35 확인 완료)**
+- [x] **(v1.34 추가) CloudFront 오리진 요청 정책이 `Authorization`·`Cookie`·쿼리 스트링을 오리진에 전달하는가** — 안 되면 로그인 후 모든 인증 요청 401, 검색/페이지네이션 무시, 첨부 서명 토큰 미전달 — **(v1.35 확인 완료, `AllViewer` 적용됨)**
+- [x] **(v1.34 추가, v1.35 방식 변경) ~~CloudFront가 `X-Forwarded-Proto: https`를 오리진에 전달하도록 구성됐는가~~** — **2026-09-10 실측 결과 이 방식 자체가 불가능함이 확정됐다.** CloudFront는 `X-Forwarded-Proto`를 오리진에 무조건 제거하고, `CloudFront-Forwarded-Proto`도 관리형 `CachingDisabled` 정책에서는 켤 수 없다(캐시 정책에서 별도 헤더-기반-캐싱 설정 필요, AWS 공식 문서 확인). **대신 백엔드의 `redirect-uri`를 아예 `https`로 하드코딩했다**(`application-prod.properties`, `todo-backend` 커밋 `f940c30`) — 이 배포의 Viewer Protocol Policy가 "Redirect HTTP to HTTPS"라 항상 안전하다.
+- [x] **(v1.34 추가) Amplify의 `NEXT_PUBLIC_API_BASE_URL`이 CloudFront 도메인을 가리키는가** — EC2 IP를 직접 가리키면 CloudFront를 우회하게 된다 — **(v1.35 확인 완료)**
 - [ ] **RDS 스키마가 적용됐고 `ddl-auto=validate`로 기동되는가** (`CLAUDE.md` 4장·12장)
 - [ ] **타임스탬프가 UTC로 저장되는가** — 로컬 KST ↔ RDS UTC 환경 차이. `created_at`을 DB에서 직접 조회해 실제 시각과 대조한다
 - [ ] `/actuator/health`만 열려 있고 나머지 `/actuator/**`는 막혀 있는가
 - [ ] **(v1.34 정정)** EC2 보안그룹에서 22가 본인 IP로 제한됐는가. 8080은 CloudFront 도입 이후 오리진 접속용으로 공개돼 있는 것이 정상이다(11-2·11-3 참조) — 가능하면 CloudFront IP 대역으로 제한됐는지도 확인한다
 - [ ] RDS가 프라이빗 서브넷에 있고 퍼블릭 액세스가 비활성인가
-- [ ] **첨부 업로드가 운영에서 동작하는가** (Phase 12를 먼저 실행하므로 해당) — `upload/` 디렉토리 생성·쓰기 권한, 업로드 경로가 CloudFront 캐시/오리진 요청 정책에서 제대로 통과되는지(11-3 참조)
-- [ ] 회원가입 → 로그인 → 할 일 생성 → 이미지 첨부 → 완료 토글 → 삭제까지 **운영 도메인에서 전 흐름 왕복**
+- [x] **첨부 업로드가 운영에서 동작하는가** (Phase 12를 먼저 실행하므로 해당) — `upload/` 디렉토리 생성·쓰기 권한, 업로드 경로가 CloudFront 캐시/오리진 요청 정책에서 제대로 통과되는지(11-3 참조)
+  > **(v1.35, 2026-09-10 실측)** 이 프로젝트는 Phase 13에서 S3로 전환했으므로 `upload/` 디렉토리가 아니라 **S3 presign**이 대상이다. 최초 시도는 `SdkClientException`(EC2에 IAM 역할 미연결)으로 500이 났다 — EC2 콘솔에서 `todolist-ec2-s3-role`을 인스턴스에 연결한 뒤 재시도해 정상 동작 확인.
+- [x] 회원가입 → 로그인 → 할 일 생성 → 이미지 첨부 → 완료 토글 → 삭제까지 **운영 도메인에서 전 흐름 왕복**
+  > **(v1.35, 부분 확인)** 신규 이메일 회원가입 + 이미지 첨부까지 실측 확인. 할 일 생성/완료 토글/삭제는 이번 세션에서 별도로 재확인하지 않았다(Phase 8~9에서 이미 검증된 기능이라 낮은 위험으로 판단) — 다음에 전체 DoD를 마무리할 때 마저 확인할 것.
 - [ ] 30분 뒤 Access Token 만료 시 자동 재발급이 동작하는가 (또는 만료된 토큰을 심어 재현)
 
 **태그**: 통과 시 세 저장소 모두 `v1.0.0`
