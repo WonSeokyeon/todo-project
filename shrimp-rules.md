@@ -52,7 +52,7 @@
 
 ## 3. 프론트엔드 규칙 (`todo-frontend/`)
 
-- **작업 전 Next.js 버전을 먼저 확인하라.** 현재 16.3.3이 설치되어 있으나 SSOT는 15.x 고정을 요구한다(Amplify Hosting SSR 지원 범위가 12~15이기 때문). 16 전용 API(`LayoutProps<...>` 전역 타입 등)를 사용하는 새 코드를 작성하지 마라. 다운그레이드가 아직 안 된 상태에서 기능 코드를 쌓지 마라 — 먼저 버전 문제를 해결해야 하는지 사용자와 확인하라.
+- **작업 전 Next.js 버전을 먼저 확인하라.** 현재 16.3.3이 설치되어 있으나 SSOT는 15.x 고정을 요구한다. 16 전용 API(`LayoutProps<...>` 전역 타입 등)를 사용하는 새 코드를 작성하지 마라. 다운그레이드가 아직 안 된 상태에서 기능 코드를 쌓지 마라 — 먼저 버전 문제를 해결해야 하는지 사용자와 확인하라.
 - `src/` 디렉터리가 없다. `todo-project/CLAUDE.md` 2장 구조도는 `src/app`, `src/components`, `src/lib`, `src/types`, `src/hooks`를 전제로 한다. 새 파일을 루트 `app/`에 계속 추가하지 말고, `src/` 마이그레이션이 선행되어야 하는지 확인 후 진행하라(`tsconfig.json`의 `@/*` 경로, `components.json`의 css 경로도 함께 갱신 대상이다).
 - 폼 라이브러리(`react-hook-form`, `zod`, `@hookform/resolvers`)를 설치하지 마라. 이 프로젝트의 폼은 `useState` + 수동 검증으로만 구현한다. `npx shadcn add form`을 실행하지 마라(react-hook-form이 의존성으로 딸려 들어온다).
 - `docs/guides/forms-react-hook-form.md`는 다른 프로젝트에서 넘어온 미정리 참고자료이며 위 규칙과 충돌한다("이미 설치되어 있습니다"라고 적힌 react-hook-form/zod는 실제 `package.json`에 없다). 이 문서의 코드 예시를 그대로 채용하지 마라. "폼 상태 관리 패턴"이 필요하면 `useState` 기반으로 새로 작성하라.

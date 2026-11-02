@@ -1,6 +1,6 @@
 # Next.js 15 가이드
 
-> 참고 자료. 스펙은 `CLAUDE.md`다(`docs/guides/README.md` 참조). 버전은 `CLAUDE.md` 3장에서 **Next.js 15로 확정**됐다(Amplify Hosting SSR 지원 범위가 12~15이기 때문 — 16 사용 금지).
+> 참고 자료. 스펙은 `CLAUDE.md`다(`docs/guides/README.md` 참조). 버전은 `CLAUDE.md` 3장에서 **Next.js 15로 확정**됐다(16 사용 금지).
 
 ## 이 프로젝트의 App Router 구조
 
@@ -41,8 +41,3 @@ src/
 
 토큰이 localStorage에 있어 서버에서 실행되는 middleware는 접근할 수 없다. `middleware.ts`를 만들지 말고, `(main)` 클라이언트 레이아웃 + `useAuth`(JWT `exp` 클레임 검사)로 구현한다.
 
-## Amplify 배포 제약
-
-- `public/static` 경로를 만들지 않는다(Amplify 예약 경로).
-- `main`·`develop` 브랜치 모두 동일한 렌더링 방식(SSR/CSR 혼합, `next build`)이어야 한다.
-- 빌드 출력은 `.next`. `next.config.ts`에 `distDir`을 설정하지 않는다.

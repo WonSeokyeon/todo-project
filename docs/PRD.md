@@ -156,7 +156,7 @@
 ```
 /login → "비밀번호를 잊으셨나요?" → /forgot-password
   → 이메일 입력 → 전송 (가입 여부와 무관하게 같은 안내)
-  → [로컬] 재설정 링크를 서버 콘솔 로그로 출력 / [운영] SMTP 발송
+  → [로컬] 재설정 링크를 서버 콘솔 로그로 출력
   → 링크 클릭 → /reset-password?token=xxx
   → 새 비밀번호 입력 → 성공
       → 모든 Refresh Token 폐기 (기존 세션 전부 종료)
@@ -400,7 +400,7 @@
 | 브라우저    | **Chromium 계열 1종 + 사용 가능한 다른 엔진 1종** (Windows: Chrome + Edge/Firefox, Mac: Chrome + Safari) | Phase 10    |
 | 반응형      | 360px ~ 1920px (Phase 8은 360px, Phase 10은 상한까지)                                                    | Phase 8·10  |
 | 인증 보안   | Access/Refresh 2종 토큰, Refresh 회전·재사용 감지, 소유권 검증, 입력값 검증                              | Phase 2·2.5·3·4 |
-| 쿠키·CORS   | httpOnly·SameSite 쿠키가 로컬(Lax)과 운영(None; Secure) 양쪽에서 동작. CORS는 `allowCredentials(true)` + 명시적 origin | Phase 2.5·10 |
+| 쿠키·CORS   | httpOnly·SameSite 쿠키가 로컬(Lax)에서 동작. CORS는 `allowCredentials(true)` + 명시적 origin | Phase 2.5·10 |
 | 시크릿 관리 | 환경변수로 분리, 저장소에 커밋하지 않음                                                                  | Phase 0·10  |
 | XSS 방어    | 저장 시 서버 정화 + 렌더 시 DOMPurify 이중 방어                                                          | Phase 4·8   |
 | 문서화      | 모든 API가 Swagger UI에 노출                                                                             | Phase 4     |

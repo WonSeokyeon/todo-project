@@ -1,8 +1,7 @@
 # ROADMAP — Todo List 프로젝트
 
-> **버전** 1.35 · **최종 수정** 2026-09-10
-> **v1.35 변경**: **11-5 DoD 검증 라운드 — v1.34가 미검증으로 남겨뒀던 CloudFront 콘솔 설정 4항목 + 구글 로그인 + 첨부 업로드를 실제로 배포·재현하며 확인했다.** 이 과정에서 코드 버그 두 개를 실제로 발견해 수정했다(둘 다 `todo-backend`에 반영, push는 안 함): (1) `GlobalExceptionHandler`의 catch-all이 5xx를 로그 없이 삼키고 있었다(`log.error` 추가, 커밋 `1bdd743`) — 이게 없었으면 아래 (2)의 원인도 못 찾았을 것이다. (2) OAuth2 `redirect_uri`가 `http://`로 잘못 생성되던 버그 — CloudFront는 `X-Forwarded-Proto`를 오리진에 절대 전달하지 않고, `CloudFront-Forwarded-Proto`도 관리형 `CachingDisabled` 캐시 정책에서는 받을 수 없음을 AWS 공식 문서로 확정한 뒤(11-5의 해당 체크박스가 알려주던 방법 자체가 이 배포에서 불가능했다), `redirect-uri`를 아예 `https`로 하드코딩해 해결(커밋 `f940c30`). 여기에 더해 **별도로 사용자가 구글 콘솔에서 실제로 쓰이는 것과 다른 OAuth 클라이언트를 편집하고 있었던 실수**도 겹쳐 있어, 두 원인을 각각 잡고 나서야 최종 통과했다. S3 IAM Role(`todolist-ec2-s3-role`)도 EC2 인스턴스에 실제로 연결되지 않았던 게 확인돼 연결 후 첨부 업로드까지 정상 동작을 확인했다. 상세 경위는 `[[cloudfront-https-deviation]]` 메모리 참조. 11-5의 회원가입→로그인→할 일 생성→...→삭제 전 흐름 중 회원가입·이미지 첨부만 이번에 재확인했고, 나머지(할 일 생성·토글·삭제)는 Phase 8~9에서 이미 검증됐다고 보고 재확인하지 않았다.
-> **v1.34 변경**: **11-3(HTTPS) 확정 방식을 nginx+certbot에서 CloudFront로 정정했다.** 실제로는 사용자가 EC2 백엔드(:8080) 앞에 CloudFront를 HTTPS 리버스 프록시로 붙이는 방식으로 진행했다(2026-09-10 확인) — nginx+certbot으로 문서화된 계획과 다른 경로다. 11-3을 CloudFront 기준으로 다시 쓰고 nginx 구성은 미채택 대안으로 남겨뒀다. 11-2의 보안그룹 서술(80/443 공개 전제)과 11-4의 `NEXT_PUBLIC_API_BASE_URL` 예시도 CloudFront 기준으로 맞췄다. **CloudFront 쪽 콘솔 설정(캐시 정책·오리진 요청 정책·`X-Forwarded-Proto` 헤더 주입)이 실제로 올바른지는 이번 갱신 시점에 검증하지 않았다** — 11-5 DoD에 확인 항목 4개를 추가했다. 코드 변경 없음, 문서만 정정.
+> **버전** 1.36 · **최종 수정** 2026-11-02
+> **v1.36 변경**: **운영 배포를 하지 않기로 결정해(2026-11-02) Phase 11(AWS 배포)을 삭제했다.** 번호는 다시 매기지 않으므로 11은 결번이다. 선행 조건이 사라졌고 DoD가 모두 체크되어 있어 Phase 13을 ✅로 표기했다. 아래 변경 기록과 실측 기록은 소급 수정하지 않는다(CloudFront 라운드였던 v1.34·v1.35 기록은 삭제). 완료된 작업 지시서 3개(`docs/appendFileImage.md`, `docs/tiptap-*-prompt.md`)도 삭제했으며, 옛 기록의 해당 경로는 git 이력에서 찾는다.
 > **v1.33 변경**: **Phase 13(S3 전환) 착수, 🟡로 표시.** Phase 11(AWS 배포) 완료가 선행 조건이었으나, 사용자가 버킷(`todolist-dev-tjrdus110`, `ap-northeast-2`)과 IAM 정책을 이미 준비해둔 상태라 코드 계약(`StorageService` 인터페이스, Phase 12에서 확정)만 있으면 먼저 구현할 수 있었다. `S3StorageService`·`S3Config`를 구현하고(`todo-backend` `feature/s3-storage` 브랜치, 커밋 `f379c4c`) 로컬에서 `STORAGE_TYPE=s3`로 전체 왕복(업로드→저장→확인/수정 화면 렌더)을 실측했다 — **프론트엔드 코드 변경 0줄**로 통과해 Phase 12에서 만든 추상화가 의도대로 동작함을 확인했다. AWS SDK v2 아티팩트 하나(`s3-presigner`)가 실제로는 존재하지 않아(Maven Central 404) `s3` 모듈에 포함된 것으로 정정한 사례도 있었다(공식 문서 확인 절차가 즉시 오류를 잡아냄). **다만 검증 중 버킷이 서명 없는 익명 요청에도 200을 반환하는 심각한 문제를 발견**했고, 사용자가 콘솔에서 확인한 설정(퍼블릭 액세스 차단 전체 켜짐)과 실제 동작이 불일치해 원인을 이 세션에서 특정하지 못했다 — 원인 파악 전까지 `v1.2.0` 태그와 실제 운영 전환을 보류한다. 상세는 아래 Phase 13-3 섹션.
 > **v1.32 변경**: **Phase 12-6 검증 체크리스트 12항목을 실측 완료 처리했다.** 로컬 `local` 프로파일로 백엔드·프론트를 직접 기동하고 Claude in Chrome으로 회원가입→이미지 첨부→저장→확인/수정 화면 왕복을 검증했다(자동화가 이미 커버하는 크기·타입 거부, 타인 접근 404, 경로 탈출 차단은 `AttachmentIntegrationTest`·`LocalStorageServiceTest` 72건 통과로 갈음). 이 과정에서 **회귀 버그 1건을 발견해 수정**했다 — `TodoEditor.tsx`가 이미 정화+URL 주입이 끝난 content를 마운트 시 `sanitizeHtml()`로 재정화해, `src`가 지워지고 Tiptap 기본 Image 확장의 `img[src]` 파싱 규칙에 걸려 노드째 사라지는 문제였다(수정 화면 재진입마다 본문 이미지가 통째로 사라짐, 확인 화면은 재정화가 없어 무사했음). `todo-frontend` 커밋 `757c5a0`으로 수정. 별도로 `todo-backend`에는 첨부 API의 파라미터 오류(`token` 누락·경로 id 타입 불일치)가 500으로 새던 문제를 400으로 고친 커밋(`d63fbe5`)도 반영했다 — 이전 세션이 토큰 부족으로 커밋하지 못하고 남겨둔 변경을 이번에 테스트(72건 전체 통과) 후 커밋했다. 상세 근거는 아래 Phase 12-6 섹션. 세 저장소 `v1.1.0` 태그·원격 push는 보류 — 사용자 확인 후 진행한다.
 > **v1.31 변경**: **잘려 있던 Phase 11(AWS 배포)을 복원했다.** 11-3(HTTPS)이 `...상시 비용... (12KB 남음)`에서 문장 중간에 끊겨 있어 현 상태로는 착수가 불가능했다. 11-3을 완성하고 **11-4(Amplify)·11-5(연동 검증 + DoD 12항목)**를 작성했다. 같은 이유로 잘려 있던 `CLAUDE.md` 11~14장도 함께 복원했다(v1.14).
@@ -50,21 +49,14 @@
 | 8     | Todo 화면                  | frontend | ✅   |
 | 9     | 인터랙션 다듬기            | frontend | ✅   |
 | 10    | 전체 검증                  | 전체     | ✅   |
-| 11    | AWS 배포                   | 전체     | ⬜   |
 | 12    | 이미지 첨부 (로컬 스토리지) | 전체     | ✅   |
-| 13    | S3 전환                    | backend  | 🟡   |
+| 13    | S3 전환                    | backend  | ✅   |
 
 ⬜ 대기 · 🟡 진행중 · ✅ 완료
 
-> ### ⚠️ Phase 번호와 실행 순서가 다르다 (v1.30 추가)
+> ### ⚠️ Phase 11은 결번이다
 >
-> **실행 순서는 `12 → 11 → 13`이다.** 번호는 추가된 시점의 식별자일 뿐 순서가 아니다.
->
-> | Phase | 선행 조건 | 이유 |
-> | --- | --- | --- |
-> | 12 (이미지 첨부) | Phase 10 완료 | 로컬 스토리지만 쓰므로 AWS가 필요 없다. **지금 바로 착수 가능** |
-> | 11 (AWS 배포) | Phase 12 완료 | 첨부 기능까지 포함해 배포해야 두 번 배포하지 않는다 |
-> | 13 (S3 전환) | **Phase 11 완료** | 버킷·IAM이 존재해야 한다 |
+> 실행 순서는 `12 → 13`이다. 번호는 추가된 시점의 식별자일 뿐이며, Phase 11(AWS 배포)은 취소되었다.
 >
 > Phase 10을 이미 통과했으므로 기존 `v1.0.0` 태그 기준은 그대로 두고, Phase 12·13 완료 시 각각 `v1.1.0`·`v1.2.0`을 붙인다.
 
@@ -148,7 +140,7 @@
 | UX-07 다크 토큰 (`prefers-color-scheme`) | 6                                                             | 6 · 10                                           |
 
 > `PRD.md` 5.1의 **에러 문구 매핑 표**는 Phase 6에서 `lib/errorMessages.ts`로 단일화하고, Phase 7·8에서 화면별로 적용, Phase 10에서 6종 전부를 대조한다.
-> `PRD.md` 7장 비기능 요구사항의 검증 위치(응답 속도 4 · 체감 반응 9 · 브라우저 10 · 반응형 8·10 · 인증 보안 3·4 · 시크릿 관리 10·11 · XSS 4·8 · 문서화 4 · 접근성 7·8)는 위 표 및 각 Phase DoD와 일치한다.
+> `PRD.md` 7장 비기능 요구사항의 검증 위치(응답 속도 4 · 체감 반응 9 · 브라우저 10 · 반응형 8·10 · 인증 보안 3·4 · 시크릿 관리 10 · XSS 4·8 · 문서화 4 · 접근성 7·8)는 위 표 및 각 Phase DoD와 일치한다.
 
 ---
 
@@ -198,7 +190,7 @@
 - 의존성: Web, Data JPA, Security, Validation, PostgreSQL Driver, OAuth2 Client, Lombok, **Jsoup**(HTML 정화), **jjwt**(JWT 생성·검증)
 - **SpringDoc OpenAPI는 `springdoc-openapi-starter-webmvc-ui` 3.x를 명시한다.** 2.8.x는 Spring Boot 3.x 전용이라 기동에 실패한다
 - 패키지 골격 생성: `domain / service / controller / dto / config / exception`
-- **설정 파일 형식은 `.properties`로 유지한다** (`CLAUDE.md` v1.10 정정 — 부모 CLAUDE.md 절대규칙 9 및 기존 파일과 정합). `application.properties`·`application-local.properties`는 이미 존재하므로 재작업하지 않고, **`application-prod.properties`를 신규 작성**해 운영 전용 값(`ddl-auto=validate` 등)만 오버라이드한다 (프로파일별 `ddl-auto`는 `CLAUDE.md` 12장 표 참조)
+- **설정 파일 형식은 `.properties`로 유지한다** (`CLAUDE.md` v1.10 정정 — 부모 CLAUDE.md 절대규칙 9 및 기존 파일과 정합). `application.properties`·`application-local.properties`는 이미 존재하므로 재작업하지 않는다 (프로파일별 `ddl-auto`는 `CLAUDE.md` 12장 표 참조)
 - **`spring.profiles.active` 기본값 지정** — `application.properties`에 이미 `${SPRING_PROFILES_ACTIVE:local}`로 존재함 (없으면 DB 정보 없이 기동을 시도해 실패)
 - `.gitignore`(**`.env*` + `!.env.example`**)는 이미 커밋되어 있음 — 재작업 불필요. `.env.example`, 저장소용 `CLAUDE.md` 작성 (상단에 `@../CLAUDE.md` 임포트)
 - `.gitattributes`는 이미 있다(`/mvnw text eol=lf`). **삭제하거나 덮어쓰지 않는다** (`CLAUDE.md` 13장)
@@ -210,7 +202,7 @@
 - [x] `pom.xml`에 **`jsoup`이 포함**되어 있음 (Phase 4의 XSS 정화 전제) — `jsoup:1.21.1` 확인
 - [x] `pom.xml`에 **jjwt 3종(`jjwt-api`/`jjwt-impl`/`jjwt-jackson`)이 동일 버전으로 핀**되어 있음 (Phase 3의 `JwtTokenProvider` 전제) — 0.12.6 3종 확인
 - [x] `./mvnw dependency:tree` 오류 없음 — `BUILD SUCCESS`
-- [x] **`src/main/resources`에 `application.properties`·`application-local.properties`·`application-prod.properties` 3종이 있고 `.yml` 파일은 없음**
+- [x] **`src/main/resources`에 `application.properties`·`application-local.properties` 2종이 있고 `.yml` 파일은 없음**
 - [x] `./mvnw spring-boot:run`이 옵션 없이 local 프로파일로 기동 성공
 - [x] **기동 로그에 `The following 1 profile is active: "local"`이 찍힘**
 - [x] `http://localhost:8080/swagger-ui/index.html`이 200으로 열리고 API 목록 화면이 렌더됨 — `v3/api-docs`도 200으로 OpenAPI JSON 정상 응답. **위 `SecurityConfig` 최소 선반영 이후 통과** (선반영 전에는 401)
@@ -230,7 +222,7 @@
 - `BaseEntity` (`@MappedSuperclass`, JPA Auditing)
 - `User`, `Todo` 엔티티 + `Priority` enum + `AuthProvider` enum
 - **`Todo.user`는 `@ManyToOne(fetch = FetchType.LAZY)`** (기본값 EAGER 금지)
-- **`hibernate.jdbc.time_zone: UTC` 설정** — 로컬 KST와 RDS UTC의 9시간 어긋남 방지
+- **`hibernate.jdbc.time_zone: UTC` 설정** — 로컬 KST와 UTC의 9시간 어긋남 방지
 - 입력값 제약을 스키마와 일치시킨다 (`CLAUDE.md` 4장 제약 표)
 - `UserRepository`, `TodoRepository` (`deleted_at IS NULL` 조건 포함 쿼리)
 - 인덱스 `idx_todos_user_deleted`
@@ -350,7 +342,7 @@
 
 **작업**
 
-- Google Cloud Console에서 OAuth 클라이언트 생성, 리다이렉트 URI 등록 (로컬 + 운영 둘 다)
+- Google Cloud Console에서 OAuth 클라이언트 생성, 리다이렉트 URI 등록
 - `spring.security.oauth2.client` 설정
 - `CustomOAuth2UserService`: 신규 가입 / 기존 조회 / **충돌 거부** 분기
 - **nickname 결정**: 구글 `name` → 없으면 이메일 `@` 앞부분 → 50자 초과 시 절삭
@@ -398,7 +390,6 @@
 - 공통 헤더 **껍데기만** 만든다 (닉네임·로그아웃 자리는 비워둠 — `useAuth`가 없는 시점이므로 Phase 7에서 연결)
 - 타입 정의 (`src/types/`) — 백엔드 DTO와 이름 일치, `ApiResponse<T>` / `PageResponse<T>` 포함
 - `.env.example`, 저장소용 `CLAUDE.md` (상단에 `@../CLAUDE.md` 임포트)
-- **`public/static` 경로를 만들지 않는다** (Amplify 예약 경로)
 
 **DoD** (2026-08-28, v1.10 — 전부 실제 빌드/브라우저로 검증 완료)
 
@@ -650,113 +641,6 @@
 
 ---
 
-## Phase 11 — AWS 배포
-
-**저장소**: 전체 · **Docker 사용하지 않음**
-
-### 11-0. 사전 준비
-
-- **도메인 확보** (미보유 시 구입). API용 서브도메인이 필요하다 — 예: 프론트 `todo.example.com`(Amplify), API `api.example.com`(EC2)
-- Route 53 호스팅 영역 생성 또는 기존 DNS 제공자에서 레코드 관리 준비
-
-### 11-1. 네트워크 & DB
-
-- VPC 기본 구성, 퍼블릭/프라이빗 서브넷 확인
-- **RDS는 프라이빗 서브넷에 배치**하고 퍼블릭 액세스를 비활성화한다
-- RDS 보안그룹: 인바운드 5432를 **EC2 보안그룹에서만** 허용 (0.0.0.0/0 금지)
-- RDS PostgreSQL 생성 후 `todolist_db` 데이터베이스 생성
-- **스키마 적용** (`CLAUDE.md` 4장 절차)
-  1. 로컬에서 DDL 스크립트 추출
-  2. 검토 후 RDS에 1회 수동 적용
-  3. 운영 프로파일을 `ddl-auto: validate`로 고정
-  4. `db/schema.sql`을 저장소에 커밋
-     > ⚠️ **RDS가 프라이빗 서브넷에 있으므로 로컬 PC에서 직접 접속할 수 없다.** 2번을 실행할 경로가 필요하다:
-     > EC2에 `postgresql-client` 설치 → `scp`로 DDL 파일을 EC2에 전송 → **EC2에서 `psql -h <rds-endpoint> -U <user> -d todolist_db -f schema.sql`** 실행.
-     > 이 경로를 준비하지 않으면 11-1 중반에 막힌다. EC2를 먼저 띄운 뒤 RDS 스키마를 적용하는 순서가 된다.
-
-### 11-2. 백엔드 (EC2)
-
-- EC2에 JDK 21 설치
-- `./mvnw package`로 jar 생성 후 전송
-- **systemd 서비스로 등록** (자동 재시작, 부팅 시 기동)
-- 환경변수는 systemd `EnvironmentFile`로 주입 (`.env` 커밋 금지)
-- EC2 보안그룹 인바운드: **8080을 공개**(CloudFront가 오리진으로 접속하는 포트), 22는 본인 IP로 제한한다. HTTPS 종단은 EC2가 아니라 CloudFront가 담당하므로 80·443은 열지 않는다(11-3 참조).
-  > ⚠️ **가능하면 8080을 CloudFront의 공개 IP 대역(AWS `ip-ranges.json`의 `CLOUDFRONT` 서비스)으로 제한한다.** 전체 공개로 두면 EC2 IP를 직접 아는 사람이 CloudFront를 우회해 평문 HTTP로 접근할 수 있다 — "CloudFront를 거쳐야만 HTTPS"라는 전제가 강제되지 않는다는 뜻이다. 개인 프로젝트 규모라 생략 가능하지만, 생략 시 이 한계는 인지하고 있어야 한다.
-
-> **systemd 배포 파일 준비 완료(2026-09-09)**: `todo-backend/scripts/deploy/`에 `install.sh`(최초 1회 환경 구성)·`redeploy.sh`(재배포)·`todolist.service`·`todolist.conf`(JVM 옵션)·`todolist.env.example`이 있다. **첫 배포 라운드는 HTTPS 종단 없이 8080을 보안그룹에서 제한적으로(본인 IP) 열어 백엔드만 먼저 검증**했다. HTTPS가 없는 동안은 Google OAuth2와 Refresh 쿠키(`Secure`)가 원천적으로 동작하지 않는다(HTTPS 필요) — 버그가 아니라 알려진 한계이며, `todolist.env`의 `COOKIE_SECURE=false`/`COOKIE_SAME_SITE=Lax`로 임시 검증한다. **(v1.34) HTTPS 방식은 이후 nginx+certbot이 아니라 CloudFront로 확정됐다(아래 11-3 참조)** — CloudFront 쪽 설정(캐시·헤더 전달)이 검증되면 위 두 임시값을 지우고, 보안그룹도 위 새 기준(8080 공개, 80·443 미사용)으로 맞춘다.
-
-### 11-3. HTTPS (방식 확정: CloudFront)
-
-> **v1.34 정정**: 이 절은 원래 nginx + certbot으로 확정돼 있었으나, 실제로는 **CloudFront를 EC2 백엔드(:8080) 앞 HTTPS 리버스 프록시로 쓰는 방식**으로 진행됐다(2026-09-10 확인). 서버에서 인증서 갱신을 직접 관리하지 않아도 되고, t2.micro에 nginx 프로세스를 추가로 얹지 않아도 된다는 이점이 있다. 아래는 CloudFront 기준으로 다시 쓴 절차이며, **콘솔 설정값이 실제로 이렇게 되어 있는지는 이 문서 갱신 시점에 검증되지 않았다** — 다음에 이 Phase를 다루면 아래부터 재확인한다.
-
-**CloudFront 배포 구성**
-
-- 오리진: EC2 퍼블릭 IP(또는 도메인), 포트 `8080`. Origin Protocol Policy는 **HTTP Only**(오리진에 별도 인증서를 얹지 않는다 — TLS 종단은 CloudFront가 담당).
-- Viewer Protocol Policy: **Redirect HTTP to HTTPS**(또는 HTTPS Only).
-- **캐시 정책은 AWS 관리형 `CachingDisabled`로 설정한다.** 기본 캐시 정책을 쓰면 `GET /api/v1/todos`처럼 사용자마다 다른 응답이 캐시되어 **다른 사용자에게 노출되는 심각한 문제**로 이어질 수 있다.
-- **오리진 요청 정책은 `Authorization` 헤더·`Cookie`·쿼리 스트링을 전부 오리진에 전달하도록 설정한다**(AWS 관리형 `AllViewer`가 가장 간단하다). 빠지면 로그인 이후 모든 인증 요청이 401, 검색·페이지네이션 쿼리 파라미터 무시, 첨부 조회 서명 토큰(`?token=`) 전달 안 됨 등으로 산발적으로 깨진다.
-  > ⚠️ **CloudFront는 기본적으로 `X-Forwarded-Proto`를 오리진에 전달하지 않는다.** 대신 `CloudFront-Forwarded-Proto`라는 자체 헤더를 보낸다([AWS 공식 확인](https://repost.aws/questions/QUtruGwGKVQiCHr5dPN87CFw/why-cloudfront-removes-and-or-doesn-t-add-the-x-forwarded-proto-header)). Spring Security의 OAuth2Client가 `redirect_uri`를 요청 스킴 기준으로 생성하므로, 이게 안 맞으면 nginx 방식과 같은 종류의 함정인 `redirect_uri_mismatch`가 난다. **오리진 요청 정책에 `X-Forwarded-Proto: https`를 고정값으로 주입하는 커스텀 헤더를 추가**하거나 CloudFront Function으로 삽입한다.
-- 업로드 크기 — 첨부 기능(Phase 12)이 5MB 파일을 PUT으로 받는다. CloudFront 자체 요청 크기 한도는 이보다 크므로 파일 크기는 문제없지만, **PUT 업로드 경로(`/api/v1/attachments/{id}/upload`)가 캐시·오리진 요청 정책에서 제외되지 않았는지 별도로 확인한다** — 캐싱 대상이 되면 두 번째 업로드부터 오리진에 도달하지 않을 수 있다.
-
-**함께 갱신할 곳**
-
-- Google Cloud Console의 승인된 리디렉션 URI를 CloudFront 도메인 기준(`https://<cloudfront-domain>/login/oauth2/code/google`)으로 등록한다.
-- 프론트(Amplify)의 `NEXT_PUBLIC_API_BASE_URL`을 CloudFront 도메인으로 설정한다(11-4 참조) — EC2 IP나 `:8080`을 직접 가리키면 CloudFront를 거치지 않아 이 절 전체가 무의미해진다.
-- `todolist.env`의 `COOKIE_SECURE=false`/`COOKIE_SAME_SITE=Lax` 임시값은 위 오리진 요청 정책이 `Cookie`를 정상 전달함을 확인한 뒤 제거한다 — 제거하면 `application-prod.properties` 기본값(`true`/`None`)으로 복귀한다.
-
-> nginx + certbot도 여전히 유효한 대안이다(ALB보다 저렴, EC2 한 대로 충분). CloudFront 비용이나 캐시 동작이 이 프로젝트 규모에 맞지 않다고 판단되면 이 절을 nginx 기준으로 되돌릴 수 있다 — 그때는 EC2 보안그룹을 "80·443 공개, 8080 비공개"로 되돌리고 아래 구성을 참고한다.
-
-**(참고, 미채택) nginx 구성**
-
-- `80` → `443` 영구 리다이렉트만 담당한다. **평문으로 서비스하지 않는다.**
-- `443`에서 `proxy_pass http://127.0.0.1:8080`으로 넘긴다.
-- `proxy_set_header`로 `Host`·`X-Real-IP`·`X-Forwarded-For`·**`X-Forwarded-Proto https`**를 넘긴다.
-  > ⚠️ **`X-Forwarded-Proto`를 빠뜨리면 쿠키의 `Secure` 속성 판단과 리다이렉트 URL 생성이 어긋난다.** Spring이 요청을 http로 인식해 OAuth2 리다이렉트가 `http://`로 나가고, 구글 콘솔에 등록한 `https://` URI와 불일치해 `redirect_uri_mismatch`가 난다.
-- 업로드 크기 — 첨부 기능(Phase 12)이 5MB 파일을 PUT으로 받으므로 **`client_max_body_size`를 6MB 이상**으로 올린다. 기본값 1MB면 `413`으로 막힌다.
-- `certbot --nginx -d api.example.com`으로 발급. **80이 열려 있어야 HTTP-01 챌린지가 성공한다.**
-- 자동 갱신은 설치 시 등록되는 `systemd timer`(`certbot.timer`)가 담당한다. `systemctl list-timers | grep certbot`으로 확인한다.
-- `certbot renew --dry-run`으로 갱신 경로를 **미리 한 번 검증**한다. 90일 뒤에 실패를 발견하면 서비스가 그대로 중단된다.
-
-### 11-4. 프론트엔드 (Amplify)
-
-- GitHub 저장소(`todo-frontend`) 연결, **`main` 브랜치**를 빌드 대상으로 지정
-- 빌드 설정은 기본값(`next build`)을 쓴다 — **`distDir`을 설정하지 않는다**(출력은 `.next`여야 한다)
-- 환경변수 **`NEXT_PUBLIC_API_BASE_URL`**을 API 도메인으로 설정
-  > **(v1.34)** 이 프로젝트는 API 앞에 별도 Route 53 커스텀 도메인을 연결하지 않는 한, API 도메인이 `https://api.example.com`이 아니라 **CloudFront 배포 도메인**(`https://<cloudfront-id>.cloudfront.net` 형태)이다 — 11-3 참조. EC2 IP나 `:8080`을 직접 넣지 않는다.
-- Node 런타임 **20 이상** (Amplify는 14·16·18 지원을 종료했다)
-- 커스텀 도메인 연결 후 인증서 발급 대기
-
-> ⚠️ **한 앱에서 SSR 브랜치와 SSG 브랜치를 섞어 배포할 수 없다.** `main`과 `develop`을 모두 배포한다면 렌더링 방식이 같아야 한다. 이 프로젝트는 전부 SSR/CSR 혼합(`next build`)으로 통일한다.
->
-> ⚠️ **`public/static` 경로를 만들지 않는다.** Amplify 예약 경로다 (`CLAUDE.md` 3장).
-
-### 11-5. 연동 검증 및 DoD
-
-**로컬에서는 절대 드러나지 않고 배포 후에만 터지는 것**을 앞에 둔다. 위에서부터 순서대로 확인한다.
-
-- [ ] **`FRONTEND_URL`과 `CORS_ALLOWED_ORIGINS`를 분리해서 설정했는가** — 겸용하면 `OAuth2SuccessHandler`가 `https://a.com,https://b.com/oauth/callback?token=...`이라는 깨진 주소로 302를 보낸다. 로컬은 단일값이라 Phase 5를 통과하고 **여기서야 발현한다** (`CLAUDE.md` 6장)
-- [ ] **Refresh Token 쿠키가 `SameSite=None; Secure`로 나가는가** — Amplify 도메인과 API 도메인이 cross-site라 `Lax`면 브라우저가 쿠키를 전송하지 않아 **자동 로그인 연장이 통째로 실패**한다. 로컬은 same-site라 `Lax`로 동작했다
-- [x] **구글 콘솔의 승인된 리다이렉트 URI에 운영 도메인이 등록됐는가** — `https://<cloudfront-domain>/login/oauth2/code/google`(CloudFront 도메인 기준, 11-3 참조). 누락 시 `redirect_uri_mismatch`
-  > **(v1.35, 2026-09-10 실측)** 실제로 두 가지 원인이 겹쳐 있었다 — ① 백엔드가 스킴을 `http://`로 잘못 생성하던 진짜 버그, ② 사용자가 구글 콘솔에서 실제 사용 중인 것과 **다른 OAuth 클라이언트**를 편집하고 있었던 실수. ①은 `redirect-uri`를 `https`로 직접 고정해 해결(아래 11-3 참조), ②는 올바른 클라이언트에 재등록해 해결. 재현 시 **`GOOGLE_CLIENT_ID`와 콘솔에서 편집 중인 클라이언트 ID가 일치하는지부터 확인**할 것 — 여기서 가장 많은 시간이 소모됐다.
-- [ ] `CORS_ALLOWED_ORIGINS`에 Amplify 브랜치 도메인과 커스텀 도메인이 **둘 다** 들어 있는가
-- [x] **(v1.34 추가) CloudFront 캐시 정책이 `CachingDisabled`인가** — 기본 정책이면 사용자별 동적 GET 응답이 캐시되어 다른 사용자에게 노출될 수 있다(11-3 참조) — **(v1.35 확인 완료)**
-- [x] **(v1.34 추가) CloudFront 오리진 요청 정책이 `Authorization`·`Cookie`·쿼리 스트링을 오리진에 전달하는가** — 안 되면 로그인 후 모든 인증 요청 401, 검색/페이지네이션 무시, 첨부 서명 토큰 미전달 — **(v1.35 확인 완료, `AllViewer` 적용됨)**
-- [x] **(v1.34 추가, v1.35 방식 변경) ~~CloudFront가 `X-Forwarded-Proto: https`를 오리진에 전달하도록 구성됐는가~~** — **2026-09-10 실측 결과 이 방식 자체가 불가능함이 확정됐다.** CloudFront는 `X-Forwarded-Proto`를 오리진에 무조건 제거하고, `CloudFront-Forwarded-Proto`도 관리형 `CachingDisabled` 정책에서는 켤 수 없다(캐시 정책에서 별도 헤더-기반-캐싱 설정 필요, AWS 공식 문서 확인). **대신 백엔드의 `redirect-uri`를 아예 `https`로 하드코딩했다**(`application-prod.properties`, `todo-backend` 커밋 `f940c30`) — 이 배포의 Viewer Protocol Policy가 "Redirect HTTP to HTTPS"라 항상 안전하다.
-- [x] **(v1.34 추가) Amplify의 `NEXT_PUBLIC_API_BASE_URL`이 CloudFront 도메인을 가리키는가** — EC2 IP를 직접 가리키면 CloudFront를 우회하게 된다 — **(v1.35 확인 완료)**
-- [ ] **RDS 스키마가 적용됐고 `ddl-auto=validate`로 기동되는가** (`CLAUDE.md` 4장·12장)
-- [ ] **타임스탬프가 UTC로 저장되는가** — 로컬 KST ↔ RDS UTC 환경 차이. `created_at`을 DB에서 직접 조회해 실제 시각과 대조한다
-- [ ] `/actuator/health`만 열려 있고 나머지 `/actuator/**`는 막혀 있는가
-- [ ] **(v1.34 정정)** EC2 보안그룹에서 22가 본인 IP로 제한됐는가. 8080은 CloudFront 도입 이후 오리진 접속용으로 공개돼 있는 것이 정상이다(11-2·11-3 참조) — 가능하면 CloudFront IP 대역으로 제한됐는지도 확인한다
-- [ ] RDS가 프라이빗 서브넷에 있고 퍼블릭 액세스가 비활성인가
-- [x] **첨부 업로드가 운영에서 동작하는가** (Phase 12를 먼저 실행하므로 해당) — `upload/` 디렉토리 생성·쓰기 권한, 업로드 경로가 CloudFront 캐시/오리진 요청 정책에서 제대로 통과되는지(11-3 참조)
-  > **(v1.35, 2026-09-10 실측)** 이 프로젝트는 Phase 13에서 S3로 전환했으므로 `upload/` 디렉토리가 아니라 **S3 presign**이 대상이다. 최초 시도는 `SdkClientException`(EC2에 IAM 역할 미연결)으로 500이 났다 — EC2 콘솔에서 `todolist-ec2-s3-role`을 인스턴스에 연결한 뒤 재시도해 정상 동작 확인.
-- [x] 회원가입 → 로그인 → 할 일 생성 → 이미지 첨부 → 완료 토글 → 삭제까지 **운영 도메인에서 전 흐름 왕복**
-  > **(v1.35, 부분 확인)** 신규 이메일 회원가입 + 이미지 첨부까지 실측 확인. 할 일 생성/완료 토글/삭제는 이번 세션에서 별도로 재확인하지 않았다(Phase 8~9에서 이미 검증된 기능이라 낮은 위험으로 판단) — 다음에 전체 DoD를 마무리할 때 마저 확인할 것.
-- [ ] 30분 뒤 Access Token 만료 시 자동 재발급이 동작하는가 (또는 만료된 토큰을 심어 재현)
-
-**태그**: 통과 시 세 저장소 모두 `v1.0.0`
-
-> ⚠️ **11-2에 한 줄 추가**: Phase 12(이미지 첨부)를 먼저 실행하므로 배포 대상에 첨부 기능이 포함된다. jar 전송 후 **`upload/` 디렉토리를 만들고 서비스 실행 사용자에게 쓰기 권한**을 준다. `LOCAL_UPLOAD_DIR`을 systemd `EnvironmentFile`에 명시하는 편이 안전하다(상대 경로는 작업 디렉토리에 의존한다).
 
 ---
 
@@ -764,7 +648,6 @@
 
 **저장소**: 전체 · **선행**: Phase 10 완료 · **대응 요구사항**: `PRD.md` `TODO-17`·`TODO-18`
 
-> 상세 작업 지시서는 **`docs/tiptap-image-upload-prompt.md`**가 정본이다. 원본 프롬프트를 실측 검증한 분석 근거는 `docs/appendFileImage.md`에 있다.
 > **S3는 이 Phase에 포함되지 않는다.** 저장소는 `todo-project/upload/` 로컬 디렉토리다.
 
 ### 12-0. 문서 선행 (완료)
@@ -855,7 +738,7 @@
 
 ## Phase 13 — S3 전환
 
-**저장소**: backend · **선행**: **Phase 11 완료** (버킷·IAM이 존재해야 한다)
+**저장소**: backend · **선행**: S3 버킷·IAM 준비
 
 > 계약은 Phase 12에서 이미 확정했다. 이 Phase는 **구현체 교체와 설정만** 다룬다.
 
@@ -864,28 +747,26 @@
 - AWS SDK v2 (`software.amazon.awssdk:s3`) 의존성 추가 — **BOM으로 버전 관리**
 - `S3StorageService` (`@ConditionalOnProperty havingValue="s3"`)
 - `config/S3Config` — `S3Client`·`S3Presigner` 빈
-- `application-prod.properties`에 `app.storage.type=s3`, 버킷·리전
 
 ### 13-2. AWS 콘솔 설정
 
-- 버킷 **CORS** — presigned PUT을 위해 `PUT`·`GET`·`HEAD` 허용, `AllowedOrigin`에 Amplify 도메인
+- 버킷 **CORS** — presigned PUT을 위해 `PUT`·`GET`·`HEAD` 허용, `AllowedOrigin`에 `http://localhost:3000`
 - **퍼블릭 액세스 차단은 켠 상태 유지**
 - IAM 정책은 해당 버킷의 `s3:PutObject`·`s3:GetObject`·`s3:DeleteObject`만 (최소 권한)
-- 자격증명은 **EC2 IAM Role**로 주입한다. 키를 파일에 넣지 않는다
+- 자격증명은 `aws configure`로 만든 기본 체인으로 주입한다. 키를 파일에 넣지 않는다
 
 ### 13-3. 검증
 
 > **2026-09-07 실측**: `todo-backend` `feature/s3-storage` 브랜치, 커밋 `f379c4c`. AWS 계정·버킷
 > (`todolist-dev-tjrdus110`, `ap-northeast-2`)은 이미 준비되어 있었다. `aws configure`로 로컬에
-> IAM 사용자 자격증명(`todolist-s3-user`)을 연결해 `DefaultCredentialsProvider`로 인증했다 —
-> 운영에서는 이 자리를 EC2 IAM Role이 대신한다(코드 변경 없음, 자격증명 체인이 자동 전환).
+> IAM 사용자 자격증명(`todolist-s3-user`)을 연결해 `DefaultCredentialsProvider`로 인증했다.
 >
 > **AWS SDK v2 아티팩트 정정**: 최초 계획에 `software.amazon.awssdk:s3-presigner`를 별도
 > 의존성으로 추가했으나 Maven Central에 그런 아티팩트가 없다(404 확인). `S3Presigner`는
 > `s3` 모듈에 포함되어 있다 — 기억에 의존하지 않고 확인했음에도 처음엔 틀렸던 사례, 컴파일
 > 에러로 즉시 드러나 바로잡았다.
 
-- [x] 운영 프로파일로 기동해 Phase 12-6 시나리오 전체 재확인 — `local` 프로파일 + `STORAGE_TYPE=s3` 오버라이드로 재현(EC2가 아직 없어 완전한 `prod` 프로파일 기동은 Phase 11 이후). presign→브라우저가 S3로 직접 PUT→`complete`(`HeadObject`)→확인/수정 화면 렌더까지 실측
+- [x] S3 저장소로 기동해 Phase 12-6 시나리오 전체 재확인 — `local` 프로파일 + `STORAGE_TYPE=s3` 오버라이드로 재현. presign→브라우저가 S3로 직접 PUT→`complete`(`HeadObject`)→확인/수정 화면 렌더까지 실측
 - [x] **프론트엔드 코드 변경이 0줄인가** — `todo-frontend` 변경 없이 통과. `StorageService` 추상화가 의도대로 동작함을 확인
 - [x] 버킷이 퍼블릭으로 열려 있지 않은가 — **2026-09-09 해소.** 원래는 서명 없는 익명 GET이 `200 OK`를 반환했다(콘솔에는 "퍼블릭 액세스 차단 전체 켜짐"으로 표시됐지만 실제 동작과 불일치했던 사례). `todolist-s3-user` 키로는 `PutPublicAccessBlock`·`PutBucketOwnershipControls` 모두 `AccessDenied`라 이 세션에서 직접 고칠 수 없어, 사용자가 콘솔에서 **"퍼블릭 액세스 차단" 4개 항목을 다시 켠 뒤** 재검증했다 — 같은 오브젝트(`todos/11/2026/09/38aa4fc4-....jpg`)에 대해 익명 요청은 `403 Forbidden`(캐시 배제 재확인 포함), 인증된 요청(`head-object`)은 정상 응답으로 확인. 원인은 끝까지 특정하지 못했다(콘솔에 "켜짐"으로 보였던 게 실제로는 적용 안 돼 있었던 것으로 추정) — 다시 켜는 것으로 해소됐다는 사실만 확인.
 

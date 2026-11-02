@@ -1,6 +1,7 @@
 # Todo List 프로젝트 개발 가이드
 
-> **버전** 1.15 · **최종 수정** 2026-09-04
+> **버전** 1.16 · **최종 수정** 2026-11-02
+> **v1.16 변경**: **운영 배포를 하지 않기로 결정해(2026-11-02) 관련 규칙을 삭제했다.** EC2·CloudFront·Amplify·RDS·prod 프로파일 내용을 지웠다. S3는 로컬에서도 쓸 수 있는 첨부 저장소이므로 유지한다. 아래 과거 버전의 변경 기록은 소급 수정하지 않는다.
 > **v1.15 변경**: 4장 정리 배치 규칙을 정정했다. v1.13에서 고아 파일(TEMP 24시간 경과)을 "파일·행 삭제"로 적었는데 **부모 CLAUDE.md 절대규칙 5(물리 삭제 금지)를 위반**한다. Phase 12 구현 중 발견했고, 코드는 처음부터 규칙을 따라 Soft Delete로 만들었으므로 **문서만 코드에 맞춰 고쳤다.** `docs/tiptap-image-upload-prompt.md` 9장도 같이 정정했다.
 > **v1.14 변경**: **잘려 있던 11장 뒷부분과 12·13·14장을 복원했다.** 이 파일은 최초 커밋부터 11장 중간(`...에러 코드를... (10KB 남음)`)에서 끊겨 있었다 — 컨텍스트 truncation 마커가 그대로 저장된 것이다. 처음엔 "애초에 작성되지 않았다"고 판단했으나 **틀렸다**: `ROADMAP.md`가 195행에서 "프로파일별 `ddl-auto`는 12장 표 참조", 198행에서 "`.gitattributes`를 삭제하지 않는다(13장)", 353행에서 "OAuth2는 MockMvc로 검증 불가(14장)"라며 **번호와 내용을 특정해 인용**하고 있고, 이 문서 6장도 "아래 11장의 EntryPoint / AccessDeniedHandler"를 참조한다. 존재하지 않는 장을 그렇게 인용할 수는 없으므로, 원본에는 있었고 붙여넣기에서 잘린 것이다. 복원은 **추측 없이** 인용된 계약 + 실제 코드·설정 파일 + 이미 확정된 결정에만 근거했고, 각 장 머리에 복원 노트를 남겼다. 코드 변경은 없다.
 > **v1.13 변경**: **본문 이미지 첨부를 MVP 범위로 편입**했다(`PRD.md` v1.11의 `TODO-17`·`TODO-18`). 3장의 "S3는 MVP 범위에서 제외한다"를 정정하고, 4장에 `attachments` 테이블, 5장에 첨부 API 6종, 6장 XSS 절에 `img` 허용 규칙, 8장 툴바에 이미지 버튼, 11장에 `ATTACHMENT_*` 에러 코드를 추가했다. **저장소는 이번엔 로컬 디렉토리이고 S3 전환은 Phase 13**(AWS 배포 이후)이다 — 인터페이스만 지금 확정한다. 이번 건은 원칙대로 **문서를 먼저 고치고 구현에 들어간다**(6장). 상세 지시서는 `docs/tiptap-image-upload-prompt.md`, 원본 프롬프트 분석 근거는 `docs/appendFileImage.md`.
@@ -21,7 +22,7 @@
 
 - **주제**: 개인용 Todo List 풀스택 웹 서비스
 - **핵심 가치**: 로그인한 사용자가 자신의 할 일을 리치 텍스트로 작성하고, 완료/삭제를 즉각적인 반응으로 관리한다.
-- **범위**: 로컬 개발 완료 후 AWS 배포. **Docker는 사용하지 않는다.**
+- **범위**: 로컬 개발 전용. **운영 배포는 하지 않는다.** **Docker는 사용하지 않는다.**
 
 ---
 
@@ -54,8 +55,7 @@ todo-project/                    # [저장소 1] 문서 저장소
 │       │   └── exception/       # 예외 처리
 │       ├── main/resources/
 │       │   ├── application.properties
-│       │   ├── application-local.properties
-│       │   └── application-prod.properties
+│       │   └── application-local.properties
 │       └── test/
 │           ├── java/com/example/
 │           └── resources/application-test.properties
@@ -64,7 +64,7 @@ todo-project/                    # [저장소 1] 문서 저장소
     ├── .git/
     ├── CLAUDE.md                # 프론트엔드 전용 규칙
     ├── package.json
-    ├── public/                  # 정적 파일. public/static 은 만들지 않을 것
+    ├── public/                  # 정적 파일
     └── src/
         ├── app/
         │   ├── (auth)/
@@ -108,7 +108,7 @@ todo-frontend/
 | todo-backend  | `todo-backend`  | Spring Boot 애플리케이션      |
 | todo-frontend | `todo-frontend` | Next.js 애플리케이션          |
 
-- 브랜치: `main`(배포 가능 상태) ← `develop` ← `feature/{작업명}`
+- 브랜치: `main`(안정 버전) ← `develop` ← `feature/{작업명}`
 - 커밋 메시지: `feat:`, `fix:`, `refactor:`, `test:`, `docs:`, `chore:`
 - **API 계약이 바뀌면 문서 저장소를 먼저 수정**한 뒤 백엔드 → 프론트엔드 순으로 반영한다.
 - **태그 규칙**: Phase 완료 시 해당 저장소에 `v0.{Phase번호}.0`. Phase 10 전체 검증 통과 시 세 저장소 모두 `v1.0.0`.
@@ -157,18 +157,17 @@ Claude Code는 현재 디렉토리에서 **상위 디렉토리로 거슬러 올�
 
 ### 인프라
 
-AWS Amplify(프론트), EC2(백엔드), RDS(PostgreSQL) · Git/GitHub
+로컬 PC(백엔드·프론트·PostgreSQL) · Git/GitHub · AWS S3(첨부 저장소, 선택)
 
-> **S3는 Phase 13까지 사용하지 않는다.** (v1.13 정정 — 이전에는 "MVP 범위에서 제외"였다)
-> 본문 이미지 첨부가 범위에 들어오면서 파일 저장소가 필요해졌으나, **이번 구현의 저장소는 로컬 디렉토리(`todo-project/upload/`)**다. Phase 11(AWS 배포)이 끝난 뒤 Phase 13에서 S3로 전환한다.
-> 백엔드는 `StorageService` 인터페이스에만 의존하고 구현체는 `app.storage.type`으로 갈아끼운다. **프론트엔드 코드는 로컬·S3에서 동일해야 한다.** 프론트 정적 자산은 그대로 Amplify가 처리한다.
+> 첨부 저장소는 로컬 디렉토리(`todo-project/upload/`)와 S3 중에서 고른다.
+> 백엔드는 `StorageService` 인터페이스에만 의존하고 구현체는 `app.storage.type`으로 갈아끼운다. **프론트엔드 코드는 로컬·S3에서 동일해야 한다.**
 
 ### ⚠️ 버전 관련 확정 사항
 
 아래는 조사로 확인이 끝난 사항이다. **다시 확인하거나 다른 버전으로 바꾸지 않는다.**
 
-- **Next.js는 15를 쓴다. 16을 쓰지 않는다.** AWS Amplify Hosting compute의 SSR 지원 범위가 Next.js 12~15이기 때문이다. 16으로 올리면 배포가 불가능해진다. App Router·React 19·Tailwind 4는 모두 15에서 정상 동작하므로 이 프로젝트가 잃는 기능은 없다.
-- **Node.js는 20 이상을 쓴다.** Amplify Hosting은 Node 14·16·18 런타임 지원을 종료했고 20·22·24만 지원한다. 로컬 개발 Node 버전도 여기에 맞춘다.
+- **Next.js는 15를 쓴다. 16을 쓰지 않는다.** 이 프로젝트는 15 기준으로 구현·검증되었다. App Router·React 19·Tailwind 4는 모두 15에서 정상 동작하므로 이 프로젝트가 잃는 기능은 없다.
+- **Node.js는 20 이상을 쓴다.**
 - **SpringDoc OpenAPI는 3.x를 쓴다.** `org.springdoc:springdoc-openapi-starter-webmvc-ui` 버전 3.x가 Spring Boot 4.x 대응이다. **2.8.x는 Spring Boot 3.x 전용이므로 쓰면 기동에 실패한다.**
   > ⚠️ **"3.x"로 두지 말고 정확한 버전을 `pom.xml`에 핀한다.** SpringDoc 3.x 안에서도 Boot 마이너 버전과 1:1로 대응한다(3.0.0→Boot 4.0.0, 3.0.3→4.0.5, 3.1.0→4.1.0). 범위로 두면 Boot 4.0.x에 3.1.0이 딸려 들어와 관리 버전이 어긋난다. **현재 `pom.xml`의 Boot 버전을 확인하고 대응하는 SpringDoc 버전을 명시적으로 적는다.**
 - **JWT 라이브러리는 jjwt 0.12.6으로 고정한다.** `pom.xml`에 세 아티팩트가 모두 필요하며, **`jjwt-impl`과 `jjwt-jackson`은 `<scope>runtime</scope>`이 의도된 설정이다.** 컴파일 시점에는 `jjwt-api`만 참조하고 구현체는 실행 시점에 주입되는 구조이므로, "왜 3개나 있지" 하고 정리하면 기동 시 `ClassNotFoundException`이 난다.
@@ -181,12 +180,6 @@ AWS Amplify(프론트), EC2(백엔드), RDS(PostgreSQL) · Git/GitHub
 - **Tailwind CSS 4는 CSS-first 설정**이다. `tailwind.config.js` 대신 `globals.css`에서 `@import "tailwindcss";` + `@theme { ... }`로 토큰을 정의한다. v3 방식으로 작성하지 않는다.
 - Spring Security는 `SecurityFilterChain` 빈(람다 DSL)으로만 설정한다. `WebSecurityConfigurerAdapter`는 사용하지 않는다.
 
-### ⚠️ Amplify 배포 제약 (프론트 개발 시 반드시 지킬 것)
-
-- **`public/static` 경로를 만들지 않는다.** Amplify가 배포용으로 예약한 경로다. 정적 파일은 `public/` 바로 아래나 `public/assets/`에 둔다.
-- **한 앱에서 SSR 브랜치와 SSG 브랜치를 섞어 배포할 수 없다.** `main`과 `develop` 모두 동일한 렌더링 방식이어야 한다. 이 프로젝트는 전부 SSR/CSR 혼합(`next build`)으로 통일한다.
-- 빌드 출력 디렉토리는 `.next`여야 한다. `next.config.js`에 `distDir`을 설정하지 않는다.
-- `next/image` 사용 시 이미지 응답 크기 제한이 있다. 이 프로젝트는 이미지 업로드가 비목표이므로 해당 없음.
 
 ---
 
@@ -312,11 +305,11 @@ private String password;
 
 - 모든 엔티티는 `BaseEntity`를 상속해 `created_at`, `updated_at`을 자동 관리한다 (`@EnableJpaAuditing`).
 - **Soft Delete**: 물리 삭제 금지. `deleted_at`에 현재 시각을 기록하고, 모든 조회에 `deleted_at IS NULL` 조건을 포함한다.
-- 로컬 개발은 `ddl-auto: update`. **운영 전환 절차는 아래 참조.**
+- 로컬 개발은 `ddl-auto: update`.
 
 ### ⚠️ 타임존은 UTC로 고정한다 (중요)
 
-로컬 개발 환경은 KST(+09:00)이고 RDS 기본 타임존은 UTC다. 아무 조치 없이 `LocalDateTime`을 쓰면 **로컬에서 만든 데이터와 운영 데이터의 시각이 9시간 어긋나고**, 배포 후에야 드러난다.
+로컬 개발 환경은 KST(+09:00)다. 아무 조치 없이 `LocalDateTime`을 쓰면 **실행 환경의 타임존에 따라 저장 시각이 9시간 어긋난다.**
 
 - **모든 타임스탬프는 애플리케이션 코드에서 직접 UTC로 계산한다** — JPA Auditing(`created_at`/`updated_at`)은 `DateTimeProvider` 빈이 `LocalDateTime.now(ZoneOffset.UTC)`를 반환하게 하고(`@EnableJpaAuditing`과 함께 메인 애플리케이션 클래스에 둔다), 엔티티가 직접 시각을 만드는 곳(`softDelete()`, Refresh Token 발급/폐기 등)도 전부 `LocalDateTime.now(ZoneOffset.UTC)`를 명시한다.
 - **`application.properties`에 `spring.jpa.properties.hibernate.jdbc.time_zone=UTC`를 설정하지 않는다.** ⚠️ 예전에는 이 설정을 두라고 했으나 **틀렸다** — JVM 기본 타임존이 KST인 로컬 환경에서 이 값을 주면 Hibernate가 `LocalDateTime` 바인딩에도 Calendar 기반 구식 경로를 타면서, 위에서 이미 UTC로 계산해 둔 값을 "JVM 기본 타임존(KST)의 로컬 시각"으로 다시 해석해 UTC로 한 번 더 변환해버린다 — 결과적으로 실제 저장값이 **9시간 뒤로 밀린다**(2026-09-02 실측 발견 및 수정). Repository 테스트가 `saveAndFlush` 직후의 **메모리 상 엔티티 값**만 검증하고 DB에 실제로 쓰인 값을 재조회하지 않으면 이 왜곡을 못 잡으므로, UTC 저장을 검증하는 테스트는 반드시 JDBC로 컬럼 원본 값을 직접 재조회해서 대조한다(`todo-backend`의 `UserRepositoryTest` 참조).
@@ -340,16 +333,9 @@ private User user;
 
 `LOWER(title) LIKE '%키워드%'`는 앞쪽 와일드카드 때문에 인덱스를 타지 못한다. MVP 데이터 규모(수백 건)에서는 문제없지만, **`title`에 인덱스를 추가해도 검색은 빨라지지 않는다는 점을 알고 있어야 한다.** 규모가 커지면 전문 검색(`pg_trgm`)을 검토한다.
 
-### 운영 스키마 생성 절차 (Flyway 미사용)
+### 스키마 관리 (Flyway 미사용)
 
-`validate`로 바꾸면 테이블을 만들 주체가 사라진다. Phase 11에서 다음 순서로 처리한다.
-
-1. 로컬에서 `spring.jpa.properties.jakarta.persistence.schema-generation.scripts`로 DDL 스크립트를 추출한다.
-2. 추출된 DDL을 검토 후 RDS에 **1회 수동 적용**한다.
-3. 운영 프로파일을 `ddl-auto: validate`로 고정한다.
-4. DDL 스크립트를 `todo-backend/src/main/resources/db/schema.sql`에 커밋해 이력을 남긴다.
-
-> 스키마 변경이 잦아지면 그때 Flyway를 도입한다. MVP에서는 도입하지 않는다.
+로컬과 테스트 모두 `ddl-auto`가 엔티티로부터 테이블을 만든다. 스키마 변경이 잦아지면 그때 Flyway를 도입한다. MVP에서는 도입하지 않는다.
 
 ---
 
@@ -596,7 +582,7 @@ http
 
 #### ⚠️ `FRONTEND_URL`과 `CORS_ALLOWED_ORIGINS`는 반드시 분리한다 (중요)
 
-두 용도는 **양립할 수 없는 형식**을 요구한다. 하나의 변수로 겸용하면 **운영에서만 구글 로그인이 깨진다.**
+두 용도는 **양립할 수 없는 형식**을 요구한다. 하나의 변수로 겸용하면 **구글 로그인이 깨진다.**
 
 | 변수                   | 형식               | 용도                                                                   |
 | ---------------------- | ------------------ | ---------------------------------------------------------------------- |
@@ -604,15 +590,14 @@ http
 | `CORS_ALLOWED_ORIGINS` | **쉼표 구분 목록** | CORS 허용 오리진                                                       |
 
 CORS 요구대로 `FRONTEND_URL`에 쉼표 목록을 넣으면, `OAuth2SuccessHandler`가 만드는 리다이렉트 URL이
-`https://todo.example.com,https://main.d123.amplifyapp.com/oauth/callback?token=...`
-이 되어 **깨진 주소로 302를 보낸다.** 로컬은 단일값이라 정상 동작하므로 Phase 5 DoD를 통과하고, **Phase 11에서야 발현한다.**
+`http://localhost:3000,http://localhost:3001/oauth/callback?token=...`
+이 되어 **깨진 주소로 302를 보낸다.**
 
-- 허용 오리진: 환경변수 `CORS_ALLOWED_ORIGINS`. 쉼표로 구분된 목록을 받는다. 운영에서 Amplify 브랜치 도메인과 커스텀 도메인을 동시에 허용해야 하는 경우가 생긴다 (로컬은 `http://localhost:3000` 하나)
+- 허용 오리진: 환경변수 `CORS_ALLOWED_ORIGINS`. 쉼표로 구분된 목록을 받는다 (로컬은 `http://localhost:3000` 하나)
 - 허용 메서드: `GET, POST, PUT, PATCH, DELETE, OPTIONS`
 - **허용 헤더에 `Authorization`, `Content-Type`을 명시한다.** 기본값에 의존하면 프리플라이트에서 막히는 경우가 잦다.
 - **Refresh Token을 httpOnly 쿠키로 주고받으므로 `allowCredentials(true)`가 필수다.** 와일드카드(`*`) 오리진은 `allowCredentials(true)`와 함께 쓸 수 없으므로 명시적 오리진 목록만 허용한다.
   - 로컬(`localhost:3000` ↔ `localhost:8080`)은 same-site이므로 `SameSite=Lax`로 동작한다.
-  - 운영(Amplify 도메인 ↔ API 도메인)은 cross-site이므로 쿠키에 `SameSite=None; Secure`가 필요하다. 이 값은 프로파일별로 분리한다.
 - 프론트의 모든 인증 요청은 `credentials: 'include'`로 보낸다(`apiClient` 공통 설정).
 
 ### 구글 OAuth2 흐름
@@ -1143,16 +1128,14 @@ onSettled: () => {
 | -------- | ----------------------------------------------- | ------------- | ------------------------- |
 | `local`  | `application-local.properties`                  | `update`      | 로컬 `todolist_db`        |
 | `test`   | `src/test/resources/application-test.properties` | `create-drop` | 로컬 `todolist_test`      |
-| `prod`   | `application-prod.properties`                   | `validate`    | RDS `todolist_db`         |
 
-- **`prod`가 `validate`이므로 테이블을 만들 주체가 없다.** 운영 스키마는 4장의 「운영 스키마 생성 절차」에 따라 DDL을 추출해 **1회 수동 적용**한다. 이 순서를 건너뛰면 기동 시 스키마 검증에 실패한다.
 - `test`는 `create-drop`이라 매 실행마다 스키마를 새로 만든다. **`todolist_db`와 다른 DB(`todolist_test`)를 쓴다** — 같은 DB를 가리키면 개발 데이터가 날아간다.
 
 ### 설정 파일 규칙
 
 - **형식은 `.properties`다. `.yml`을 쓰지 않는다** (부모 CLAUDE.md 절대규칙 9).
 - 기본 활성 프로파일은 `spring.profiles.active=${SPRING_PROFILES_ACTIVE:local}`이다.
-  > ⚠️ **이 값을 `local` 고정값으로 덮어쓰지 말 것.** 덮어쓰면 운영에서 `SPRING_PROFILES_ACTIVE=prod`를 주입해도 무시되어 로컬 설정으로 기동한다.
+  > ⚠️ **이 값을 `local` 고정값으로 덮어쓰지 말 것.** 덮어쓰면 `SPRING_PROFILES_ACTIVE` 환경변수가 무시된다.
 - 공통값은 `application.properties`에 두고, 프로파일 파일은 **차이나는 값만** 오버라이드한다.
 - 커밋되는 파일에는 **placeholder만** 둔다(`${DB_PASSWORD}`). 실제 값은 `.gitignore` 대상 파일이나 환경변수로 뺀다.
 - **`.gitignore` 대상 설정 파일에는 반드시 `.example` 짝을 둔다** — `application-local.properties` ↔ `application-local.properties.example`. 짝이 없으면 새로 클론한 사람이 어떤 키가 필요한지 알 수 없다.
@@ -1183,16 +1166,6 @@ onSettled: () => {
 
 > `NEXT_PUBLIC_` 접두사가 붙은 값은 **브라우저 번들에 그대로 들어간다.** 비밀을 넣지 않는다.
 
-### 프로파일별로 갈리는 값
-
-로컬에서는 정상인데 운영에서만 깨지는 항목들이다. **프로파일 파일에서 반드시 분리한다.**
-
-| 항목                    | local              | prod                   | 분리하지 않으면            |
-| ----------------------- | ------------------ | ---------------------- | -------------------------- |
-| `app.cookie.secure`     | `false`            | `true`                 | HTTPS에서 쿠키 미전송      |
-| `app.cookie.same-site`  | `Lax`              | `None`                 | cross-site에서 Refresh 실패 |
-| `spring.jpa.show-sql`   | `true`             | `false`                | 운영 로그 폭증             |
-| `ddl-auto`              | `update`           | `validate`             | 운영 스키마 임의 변경      |
 
 ---
 
@@ -1223,7 +1196,7 @@ onSettled: () => {
 
 ### 브랜치와 커밋
 
-- 브랜치: `main`(배포 가능) ← `develop` ← `feature/{작업명}`
+- 브랜치: `main`(안정 버전) ← `develop` ← `feature/{작업명}`
 - 커밋 메시지: `feat:` · `fix:` · `refactor:` · `test:` · `docs:` · `chore:` (Conventional Commits, **본문은 한글**)
 - **API 계약이 바뀌면 문서 저장소를 먼저 수정**한 뒤 백엔드 → 프론트엔드 순으로 반영한다.
 - 태그: Phase 완료 시 `v0.{Phase번호}.0`. 전체 검증 통과 시 세 저장소 모두 `v1.0.0`.
