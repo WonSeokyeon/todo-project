@@ -32,7 +32,7 @@
 
 ## 저장소 규칙
 
-- 브랜치: `main`(안정 버전) ← `develop` ← `feature/{작업명}`
+- 브랜치: `main`(안정 버전) ← `feature/{작업명}`
 - 커밋 메시지: `feat:` `fix:` `refactor:` `test:` `docs:` `chore:` (Conventional Commits, 본문은 한글 가능)
 - **API 계약이 바뀌면 이 문서 저장소를 먼저 수정**한 뒤 백엔드 → 프론트엔드 순으로 반영합니다.
 - Phase 완료 시 해당 저장소에 `v0.{Phase번호}.0` 태그, Phase 10(전체 검증) 통과 시 세 저장소 모두 `v1.0.0` 태그를 답니다.
