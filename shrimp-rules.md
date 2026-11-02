@@ -35,7 +35,7 @@
 
 - 3개의 독립 git 저장소: `todo-project`(문서), `todo-backend`(Spring Boot), `todo-frontend`(Next.js). 하나의 커밋/브랜치 작업이 다른 저장소에 영향을 주지 않는다.
 - `todo-project/.gitignore`는 `todo-backend/`, `todo-frontend/`를 반드시 포함해야 한다(gitlink 오커밋 방지). 새 최상위 폴더를 추가할 때도 동일하게 점검하라.
-- 세 저장소 모두 `main` 브랜치만 유지하고(`develop`은 2026-11-02 삭제) 원격(`origin`, 이름 통일 완료)에 연결·push되어 있다(Phase 0 완료, 2026-08-28). `main` ← `feature/{작업명}` 전략에 따라, 새 기능 작업은 `develop`에서 `feature/{작업명}`을 분기해 진행하라.
+- 세 저장소 모두 `main` 브랜치만 유지하고(`develop`은 2026-11-02 삭제) 원격(`origin`, 이름 통일 완료)에 연결·push되어 있다(Phase 0 완료, 2026-08-28). `main` ← `feature/{작업명}` 전략에 따라, 새 기능 작업은 `main`에서 `feature/{작업명}`을 분기해 진행하라.
 
 ## 2. 백엔드 규칙 (`todo-backend/`)
 
